@@ -35,4 +35,9 @@ public class ConfigManager {
     public static boolean enchantReturnMultiLevel() {
         return plugin.getConfig().getBoolean("enchantments.return-multi-level", true);
     }
+    public static int getRepopulateInterval() {
+        return plugin.getConfig().getInt("processing.repopulate-interval-seconds", 5);
+    }
+
 }
+

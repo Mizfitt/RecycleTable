@@ -9,3 +9,5 @@ enchantments:
   enabled: true
   return-single-level: true
   return-multi-level: true
+  overflow:
+    repopulate-delay: 3.0  # seconds before trying to refill after removing item

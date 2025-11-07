@@ -1,5 +1,7 @@
+me\mizfit\recycletable\OverflowListener.class
 me\mizfit\recycletable\TableListener.class
 me\mizfit\recycletable\CompatibilityUtils$1.class
+me\mizfit\recycletable\OverflowStorage$1.class
 me\mizfit\recycletable\RecycleTable.class
 me\mizfit\recycletable\RecycleSession.class
 me\mizfit\recycletable\PlayerJoinListener.class
@@ -15,5 +17,6 @@ me\mizfit\recycletable\UiHelpers.class
 me\mizfit\recycletable\RecyclingTableItem.class
 me\mizfit\recycletable\SessionManager.class
 me\mizfit\recycletable\EnchantUtils.class
+me\mizfit\recycletable\OverflowStorage.class
 me\mizfit\recycletable\HopperListener.class
 me\mizfit\recycletable\ConfigManager.class
