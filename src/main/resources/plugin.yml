@@ -1,0 +1,7 @@
+name: Recycle Table
+version: '${project.version}'
+main: me.mizfit.recycletable.RecycleTable
+api-version: '1.20'
+commands:
+  giverecycler:
+    description: Give yourself a Recycling Table

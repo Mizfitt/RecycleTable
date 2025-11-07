@@ -1,0 +1,11 @@
+blacklist: []
+hopper:
+  allow-input: true
+  allow-output: true
+processing:
+  speed-multiplier: 1.0
+  session-expire-ms: 86400000
+enchantments:
+  enabled: true
+  return-single-level: true
+  return-multi-level: true
