@@ -39,15 +39,32 @@ public class OverflowStorage {
     }
 
     private static void mergeIntoList(List<ItemStack> list, ItemStack add) {
+        if (add == null || add.getAmount() <= 0) {
+            return;
+        }
+
+        ItemStack remaining = add.clone();
+
         for (ItemStack i : list) {
-            if (i.isSimilar(add) && i.getAmount() < i.getMaxStackSize()) {
-                int canAdd = Math.min(add.getAmount(), i.getMaxStackSize() - i.getAmount());
-                i.setAmount(i.getAmount() + canAdd);
-                add.setAmount(add.getAmount() - canAdd);
-                if (add.getAmount() <= 0) return;
+            if (!i.isSimilar(remaining) || i.getAmount() >= i.getMaxStackSize()) {
+                continue;
+            }
+
+            int canAdd = Math.min(remaining.getAmount(), i.getMaxStackSize() - i.getAmount());
+            i.setAmount(i.getAmount() + canAdd);
+            remaining.setAmount(remaining.getAmount() - canAdd);
+            if (remaining.getAmount() <= 0) {
+                return;
             }
         }
-        list.add(add);
+
+        while (remaining.getAmount() > 0) {
+            int split = Math.min(remaining.getAmount(), remaining.getMaxStackSize());
+            ItemStack stack = remaining.clone();
+            stack.setAmount(split);
+            list.add(stack);
+            remaining.setAmount(remaining.getAmount() - split);
+        }
     }
 
     public static void save() {
