@@ -1,7 +1,9 @@
-name: Recycle Table
-version: '${project.version}'
+name: RecycleTable
 main: me.mizfit.recycletable.RecycleTable
-api-version: '1.20'
+version: 1.0
+api-version: 1.20
 commands:
   giverecycler:
-    description: Give yourself a Recycling Table
+    description: Gives the player a Recycling Table
+    usage: /giverecycler
+    permission: recycletable.give

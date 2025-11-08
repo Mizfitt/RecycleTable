@@ -1,7 +1,7 @@
 package me.mizfit.recycletable;
 
-import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -14,29 +14,32 @@ public class RecycleTable extends JavaPlugin {
         instance = this;
         saveDefaultConfig();
 
-        // Initialize managers
+        // Load config & managers
         ConfigManager.load(this);
         RecipeManager.initialize();
+        OverflowStorage.initialize(getDataFolder()); // ✅ Correct usage: pass the File data folder
 
-        // Register event listeners
+        // Register listeners
         getServer().getPluginManager().registerEvents(new TableListener(), this);
         getServer().getPluginManager().registerEvents(new HopperListener(), this);
         getServer().getPluginManager().registerEvents(new PlaceListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
         getServer().getPluginManager().registerEvents(new OverflowListener(), this);
 
-        // Register command
-        this.getCommand("giverecycler").setExecutor((sender, cmd, label, args) -> {
-            if (!(sender instanceof org.bukkit.entity.Player)) {
-                sender.sendMessage("Only players may use this.");
+        // Command: /giverecycler
+        if (getCommand("giverecycler") != null) {
+            getCommand("giverecycler").setExecutor((sender, cmd, label, args) -> {
+                if (!(sender instanceof org.bukkit.entity.Player)) {
+                    sender.sendMessage("Only players may use this.");
+                    return true;
+                }
+                RecyclingTableItem.giveTo((org.bukkit.entity.Player) sender, 1);
+                sender.sendMessage("Given Recycling Table.");
                 return true;
-            }
-            RecyclingTableItem.giveTo((org.bukkit.entity.Player) sender, 1);
-            sender.sendMessage("Given Recycling Table.");
-            return true;
-        });
+            });
+        }
 
-        // Load sessions
+        // Session persistence
         storage = new SessionStorage(getDataFolder());
         Map<UUID, RecycleSession> loaded = storage.loadSessions();
 
@@ -44,18 +47,17 @@ public class RecycleTable extends JavaPlugin {
             RecycleSession s = e.getValue();
             SessionManager.registerSession(e.getKey(), s);
 
-            // Calculate offline time since last activity
+            // Apply offline compensation
             long offlineSeconds = 0L;
-            if (s.getLastActiveTime() > 0) {
+            if (s.getLastActiveTime() > 0)
                 offlineSeconds = (System.currentTimeMillis() - s.getLastActiveTime()) / 1000L;
-            }
 
-            // Resume processing with offline progress
             if (s.isActive()) s.start(this, offlineSeconds);
         }
 
-        // Load placed recycling tables
+        // Load placed tables
         TablePersistence.loadPlacedTables(this);
+
         getLogger().info("RecycleTable enabled. Recipes indexed: " + RecipeManager.getRecipeCount());
     }
 
@@ -63,9 +65,8 @@ public class RecycleTable extends JavaPlugin {
     public void onDisable() {
         storage.saveSessions(SessionManager.getAllSessions());
         TablePersistence.savePlacedTables(this);
+        OverflowStorage.save(); // ✅ Save overflow storage on shutdown
     }
 
-    public static RecycleTable getInstance() {
-        return instance;
-    }
+    public static RecycleTable getInstance() { return instance; }
 }

@@ -1,13 +1,152 @@
+# ==============================================================
+#  ♻️ Recycle Table - Configuration File
+#  Author: Mizfit
+#  Description:
+#    Controls all plugin behavior including recyclables,
+#    processing times, enchantment returns, hoppers,
+#    overflow behavior, and dynamic complexity balancing.
+# ==============================================================
+
+
+# ==============================================================
+# 🔒 ITEM BLACKLIST
+# --------------------------------------------------------------
+# Items listed here cannot be recycled. Use Material names.
+# Example: [BEDROCK, COMMAND_BLOCK, RECYCLING_TABLE]
+# ==============================================================
 blacklist: []
+
+
+# ==============================================================
+# ⚙️ HOPPER BEHAVIOR
+# --------------------------------------------------------------
+# Allow hoppers to interact with recycling tables.
+# Input:  If true, hoppers can insert recyclable items.
+# Output: If true, hoppers can pull finished materials.
+# ==============================================================
 hopper:
   allow-input: true
   allow-output: true
+
+
+# ==============================================================
+# ⏱️ PROCESSING SETTINGS
+# --------------------------------------------------------------
+# speed-multiplier: Adjusts all recycling times globally.
+#   (Higher = faster processing)
+#
+# session-expire-ms: Milliseconds before inactive sessions expire.
+#   Default = 24 hours (86400000 ms)
+# ==============================================================
 processing:
   speed-multiplier: 1.0
   session-expire-ms: 86400000
+
+
+# ==============================================================
+# ✨ ENCHANTMENT EXTRACTION
+# --------------------------------------------------------------
+# enabled: Whether enchantment book extraction is active.
+# return-single-level: Return books for 1-level enchantments
+#                      (e.g., Mending, Infinity)
+# return-multi-level:  Return books for multi-level enchantments
+#                      but reduced by one level (Fortune III → II)
+# ==============================================================
 enchantments:
   enabled: true
   return-single-level: true
   return-multi-level: true
-  overflow:
-    repopulate-delay: 3.0  # seconds before trying to refill after removing item
+
+
+# ==============================================================
+# 📦 OVERFLOW STORAGE
+# --------------------------------------------------------------
+# When the recycler’s output is full, items are sent here.
+#
+# repopulate-delay: How long (in seconds) to wait before
+#                   attempting to refill after items are removed.
+# ==============================================================
+overflow:
+  repopulate-delay: 3.0  # seconds
+
+
+# ==============================================================
+# 🧠 COMPLEXITY CALCULATOR
+# --------------------------------------------------------------
+# Determines how long each item takes to recycle, based on
+# its rarity, material depth, crafting tree, and other traits.
+#
+# The following values control *weights* for each algorithmic
+# feature, meaning you can fine-tune complexity difficulty.
+# ==============================================================
+complexity:
+
+  # --- Core algorithmic feature weights ---
+  features:
+    base: 3.0                # Base complexity for all items
+    unstackable_bonus: 6.0   # Items that can’t stack (like armor/tools)
+    low_stack_bonus: 2.5     # Stack size under 16
+    durability_bonus: 5.0    # Items with durability
+    nether_bonus: 4.0        # Crafted from Nether materials
+    end_bonus: 4.5           # Crafted from End materials
+    rare_mat_bonus: 6.0      # Diamonds, Netherite, etc.
+    unit_weight: 1.0         # Weight of each ingredient’s quantity
+    unique_type_weight: 2.0  # Multiplier for diversity of ingredients
+    depth_weight: 4.0        # Each level of crafting depth adds time
+    max_depth_scan: 8.0      # Max recursion levels when checking recipes
+    tool_bonus: 6.0          # Tools
+    weapon_bonus: 7.0        # Weapons
+    armor_bonus: 7.5         # Armor
+    redstone_bonus: 5.0      # Redstone components
+    smelt_bonus: 3.0         # Smelted items (ingots, glass, etc.)
+    common_penalty: 1.5      # Common blocks get slightly faster times
+    basic_mats_penalty: 1.0  # Basic mats (wood, stone, dirt) faster recycle
+
+  # --- Mapping score boundaries ---
+  map:
+    min_score: 1
+    max_score: 250
+
+  # --- Time mapping range ---
+  #  Items with the lowest complexity take 15s
+  #  Items with the highest complexity take 3 hours
+  time:
+    min_seconds: 15
+    max_seconds: 10800
+
+
+# ==============================================================
+# 📊 ANALYTICS & AUTO-REBALANCING
+# --------------------------------------------------------------
+# The plugin monitors how players recycle items to adjust
+# complexity and rarity over time. It automatically rebalances
+# based on player behavior to keep time scaling fair.
+# ==============================================================
+analytics:
+
+  # Save updates immediately (true) or batch them on intervals (false)
+  immediate-save: false
+
+  rebalance:
+    interval-minutes: 180   # How often the system rebalances globally
+
+  frequency:
+    increment: 1.0         # How much frequency increases per recycle
+    decay-per-rebalance: 0.90  # Reduces frequency to prevent inflation
+    min-multiplier: 0.65       # Minimum effect multiplier
+    max-multiplier: 1.15       # Maximum effect multiplier
+    curve: 0.60                # Controls exponential bias
+
+  depth:
+    ema-alpha: 0.10        # Weight for smoothing average recipe depth
+    target-avg: 2.5        # Target average recipe depth to maintain balance
+    balance-room: 0.8      # How much variance is allowed before adjusting
+    tanh-k: 0.6            # Curve slope for balancing adjustments
+
+
+# ==============================================================
+# 💾 END OF CONFIGURATION
+# --------------------------------------------------------------
+# Changes to this file require a /recycletable reload
+# or server restart to take effect.
+# ==============================================================

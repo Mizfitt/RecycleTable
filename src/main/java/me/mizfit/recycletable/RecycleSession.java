@@ -8,12 +8,14 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Handles item-by-item recycling with full offline-time compensation,
- * ordered queue processing, and integrated overflow management.
+ * ordered queue processing, integrated overflow management,
+ * and automatic analytics tracking.
  */
 public class RecycleSession {
     private final UUID owner;
@@ -65,7 +67,6 @@ public class RecycleSession {
             return;
         }
 
-        // Apply offline progress to queued items
         while (!queue.isEmpty() && offlineSeconds > 0) {
             ItemStack peek = queue.peek();
             int complexity = Math.max(1, Math.min(250, ComplexityCalculator.calculateComplexity(peek)));
@@ -74,31 +75,19 @@ public class RecycleSession {
 
             if (offlineSeconds >= totalSeconds) {
                 processSingleItem(peek);
-                queue.poll(); // remove processed item
+                queue.poll();
                 offlineSeconds -= totalSeconds;
             } else {
-                // Partially processed
                 startProcessing(plugin, peek, totalSeconds - offlineSeconds);
                 offlineSeconds = 0;
                 return;
             }
         }
 
-        // If all items finished offline, mark session finished
         if (queue.isEmpty()) {
             finish();
         } else {
             startProcessing(plugin, queue.poll(), 0);
-        }
-    }
-
-    /**
-     * Resumes a paused or loaded recycling session after restart.
-     * Called by RecycleTable.onEnable() when restoring sessions.
-     */
-    public void resumeTask(JavaPlugin plugin) {
-        if (!active && !queue.isEmpty()) {
-            start(plugin, 0L);
         }
     }
 
@@ -137,10 +126,6 @@ public class RecycleSession {
         }.runTaskTimer(plugin, 0L, 20L);
     }
 
-    /**
-     * Processes one item into raw materials and deposits them.
-     * If output inventory is full, results go into OverflowStorage.
-     */
     private void processSingleItem(ItemStack item) {
         List<ItemStack> decomposed = RecipeManager.decomposeToRaw(item);
         double durabilityFactor = CompatibilityUtils.getDurabilityFactor(item);
@@ -168,7 +153,6 @@ public class RecycleSession {
             if (aggregated.isEmpty() && !ratio.isEmpty()) aggregated.put(ratio.keySet().iterator().next(), 1);
         }
 
-        // --- Attempt to place into output slots (27–53)
         Player pl = Bukkit.getPlayer(owner);
         Map<Material, Integer> overflow = new HashMap<>();
 
@@ -188,11 +172,9 @@ public class RecycleSession {
                 }
             }
 
-            // Anything left becomes overflow
             if (remaining > 0) overflow.put(out.getKey(), remaining);
         }
 
-        // --- NEW: Save remaining items into OverflowStorage ---
         if (!overflow.isEmpty()) {
             for (Map.Entry<Material, Integer> e : overflow.entrySet()) {
                 OverflowStorage.addItem(owner, new ItemStack(e.getKey(), e.getValue()));
@@ -201,7 +183,6 @@ public class RecycleSession {
                 pl.sendMessage(ChatColor.YELLOW + "Output full — excess items saved to overflow storage.");
         }
 
-        // --- Enchantment book recovery ---
         if (ConfigManager.enchantmentsEnabled() && item.hasItemMeta() && item.getItemMeta().hasEnchants()) {
             Map<org.bukkit.enchantments.Enchantment, Integer> returned = EnchantUtils.getReturnedEnchantments(item);
             List<ItemStack> books = EnchantUtils.generateEnchantmentBooks(returned);
@@ -218,6 +199,9 @@ public class RecycleSession {
                 if (!placed) OverflowStorage.addItem(owner, book);
             }
         }
+
+        // ✅ Hook: adaptive learning analytics (auto-balances future complexity)
+        AnalyticsManager.logRecycle(item);
 
         if (pl != null)
             pl.sendMessage(ChatColor.GREEN + "Processed 1x " + item.getType().name());
