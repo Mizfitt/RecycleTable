@@ -1,9 +1,15 @@
 package me.mizfit.recycletable;
 
 import org.bukkit.Material;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Anvil;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BlockDataMeta;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * Utility class that handles version-safe durability and damage calculations.
@@ -23,37 +29,36 @@ public class CompatibilityUtils {
 
         // --- Normal items with durability ---
         if (maxDurability > 0) {
-            try {
-                ItemMeta meta = item.getItemMeta();
-                if (meta instanceof Damageable) {
-                    Damageable dmg = (Damageable) meta;
-                    int damage = dmg.getDamage();
-                    int remaining = Math.max(0, maxDurability - damage);
-                    return clamp((double) remaining / (double) maxDurability, 0.0, 1.0);
-                }
-            } catch (Throwable ignored) {
-                // fallback to legacy method for older versions
+            ItemMeta meta = item.getItemMeta();
+            if (meta instanceof Damageable) {
+                Damageable dmg = (Damageable) meta;
+                int damage = Math.max(0, dmg.getDamage());
+                int remaining = Math.max(0, maxDurability - damage);
+                return clamp((double) remaining / (double) maxDurability, 0.0, 1.0);
             }
 
-            try {
-                short dur = item.getDurability();
-                int remaining = Math.max(0, maxDurability - dur);
+            Integer legacyDamage = getLegacyDurability(item);
+            if (legacyDamage != null) {
+                int remaining = Math.max(0, maxDurability - legacyDamage);
                 return clamp((double) remaining / (double) maxDurability, 0.0, 1.0);
-            } catch (Throwable ignored) {}
+            }
         }
 
         // --- Special handling for anvils (different "damage stages") ---
         if (type == Material.ANVIL) {
             int stage = 0;
-            try {
-                ItemMeta meta = item.getItemMeta();
-                if (meta instanceof Damageable) {
-                    Damageable dmg = (Damageable) meta;
-                    stage = dmg.getDamage();
-                } else {
-                    stage = item.getDurability();
+            ItemMeta meta = item.getItemMeta();
+            if (meta instanceof BlockDataMeta) {
+                BlockData blockData = ((BlockDataMeta) meta).getBlockData();
+                if (blockData instanceof Anvil) {
+                    stage = ((Anvil) blockData).getDamage();
                 }
-            } catch (Throwable ignored) {}
+            } else {
+                Integer legacyDamage = getLegacyDurability(item);
+                if (legacyDamage != null) {
+                    stage = legacyDamage;
+                }
+            }
 
             int maxStage = 2; // chipped & damaged
             double fraction = ((double) (maxStage - stage) / (double) maxStage);
@@ -126,5 +131,32 @@ public class CompatibilityUtils {
                     return 0;
             }
         }
+    }
+
+    private static final Method LEGACY_GET_DURABILITY = resolveLegacyDurabilityMethod();
+
+    private static Method resolveLegacyDurabilityMethod() {
+        try {
+            Method method = ItemStack.class.getMethod("getDurability");
+            method.setAccessible(true);
+            return method;
+        } catch (NoSuchMethodException ignored) {
+            return null;
+        }
+    }
+
+    private static Integer getLegacyDurability(ItemStack item) {
+        if (LEGACY_GET_DURABILITY == null) {
+            return null;
+        }
+
+        try {
+            Object result = LEGACY_GET_DURABILITY.invoke(item);
+            if (result instanceof Number) {
+                return ((Number) result).intValue();
+            }
+        } catch (IllegalAccessException | InvocationTargetException ignored) {
+        }
+        return null;
     }
 }
