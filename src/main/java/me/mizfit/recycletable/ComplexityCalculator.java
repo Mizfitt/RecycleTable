@@ -61,7 +61,11 @@ public class ComplexityCalculator {
 
     private static boolean isNether(Material m) {
         final String n = m.name();
-        return n.contains("NETHER") || n.contains("BLAZE") || n.contains("QUARTZ") || n.contains("ANCient_DEBRIS".toUpperCase());
+        // Exclude NETHERITE — it already has its own high rarity score and doesn't need the dimension bonus
+        return (n.contains("NETHER") && !n.contains("NETHERITE"))
+                || n.contains("BLAZE")
+                || n.contains("QUARTZ")
+                || n.contains("ANCIENT_DEBRIS");
     }
 
     private static boolean isEnd(Material m) {
@@ -94,7 +98,7 @@ public class ComplexityCalculator {
     private static double baseRarityPrior(Material m) {
         // Score 0..1 (higher = rarer/harder by priors)
         final String n = m.name();
-        double score = 0.25; // default base
+        double score = 0.05; // default base — simple/unknown items should be quick
 
         if (n.contains("NETHERITE") || n.contains("ANCIENT_DEBRIS")) score = 0.95;
         else if (n.contains("DIAMOND")) score = 0.85;
@@ -140,14 +144,18 @@ public class ComplexityCalculator {
         return estimateRecipeDepth(root, new HashSet<>(), 0, cfgInt("complexity.max-depth", DEFAULT_MAX_DEPTH));
     }
 
-    private static int estimateRecipeDepth(Material mat, Set<Material> seen, int depth, int maxDepth) {
-        if (depth >= maxDepth) return depth;
-        if (mat == null || seen.contains(mat)) return depth;
-        seen.add(mat);
+    private static int estimateRecipeDepth(Material mat, Set<Material> seen, int currentDepth, int maxDepth) {
+        if (currentDepth >= maxDepth) return maxDepth;
+        if (mat == null) return 0;
 
-        // Cached?
+        // Check cache first — gives the correct pre-computed depth and avoids
+        // incorrect 0s caused by the shared `seen` set across branches
         Integer cached = DEPTH_CACHE.get(mat);
         if (cached != null) return Math.min(cached, maxDepth);
+
+        // Cycle guard (shouldn't occur in vanilla recipes, but safety net)
+        if (seen.contains(mat)) return 0;
+        seen.add(mat);
 
         RecipeManager.RecipeData r = RecipeManager.getRecipeFor(mat);
         if (r == null) {
@@ -157,11 +165,13 @@ public class ComplexityCalculator {
 
         int best = 0;
         for (ItemStack ing : r.getIngredients()) {
-            int sub = estimateRecipeDepth(ing.getType(), seen, depth + 1, maxDepth);
+            int sub = estimateRecipeDepth(ing.getType(), seen, currentDepth + 1, maxDepth);
             if (sub > best) best = sub;
         }
-        DEPTH_CACHE.put(mat, best);
-        return best;
+        // +1 counts this crafting layer; raw materials (no recipe) return 0
+        int result = Math.min(best + 1, maxDepth);
+        DEPTH_CACHE.put(mat, result);
+        return result;
     }
 
     /**
@@ -216,7 +226,9 @@ public class ComplexityCalculator {
         int max = (int) cfgDouble("complexity.max-seconds", 10800);
         if (score <= 1) return min;
         if (score >= 250) return max;
+        // Exponential curve: simple items stay quick, complex items scale up sharply.
+        // e.g. score=63 (~25%) → ~1 min, score=125 (~50%) → ~7 min, score=188 (~75%) → ~35 min
         double t = (score - 1.0) / 249.0;
-        return Math.round(min + t * (max - min));
+        return Math.round(min * Math.pow((double) max / min, t));
     }
 }
