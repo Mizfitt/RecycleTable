@@ -13,14 +13,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * Stores overflow items per table (keyed by "world:x:y:z") rather than per player.
+ * This ensures items are always returned to the correct table regardless of who
+ * opened it or triggered the overflow.
+ */
 public class OverflowStorage {
-    private static final Map<UUID, List<ItemStack>> storage = new HashMap<>();
+    private static final Map<String, List<ItemStack>> storage = new HashMap<>();
     private static File file;
     private static YamlConfiguration yaml;
     private static long repopulateDelayTicks;
 
     public static void initialize(File dataFolder) {
-        if (!dataFolder.exists()) dataFolder.mkdirs(); // ensure folder exists
+        if (!dataFolder.exists()) dataFolder.mkdirs();
         file = new File(dataFolder, "overflow.yml");
         yaml = YamlConfiguration.loadConfiguration(file);
 
@@ -30,9 +35,9 @@ public class OverflowStorage {
         load();
     }
 
-    public static void addItem(UUID uuid, ItemStack item) {
-        if (item == null || item.getAmount() <= 0) return;
-        List<ItemStack> items = storage.computeIfAbsent(uuid, k -> new ArrayList<>());
+    public static void addItem(String tableKey, ItemStack item) {
+        if (tableKey == null || item == null || item.getAmount() <= 0) return;
+        List<ItemStack> items = storage.computeIfAbsent(tableKey, k -> new ArrayList<>());
         mergeIntoList(items, item);
         save();
     }
@@ -60,8 +65,12 @@ public class OverflowStorage {
     public static void save() {
         try {
             yaml.set("overflow", null);
-            for (Map.Entry<UUID, List<ItemStack>> e : storage.entrySet()) {
-                yaml.set("overflow." + e.getKey().toString(), e.getValue());
+            for (Map.Entry<String, List<ItemStack>> e : storage.entrySet()) {
+                // Replace colons in the key with | so YAML path separators aren't confused
+                String safeKey = e.getKey().replace(".", "_");
+                yaml.set("overflow." + safeKey, e.getValue());
+                // Store the original key separately so we can restore it on load
+                yaml.set("overflow-keys." + safeKey, e.getKey());
             }
             yaml.save(file);
         } catch (IOException ex) {
@@ -71,27 +80,35 @@ public class OverflowStorage {
     }
 
     public static void load() {
-        if (yaml.contains("overflow")) {
-            for (String key : Objects.requireNonNull(yaml.getConfigurationSection("overflow")).getKeys(false)) {
-                try {
-                    UUID id = UUID.fromString(key);
-                    List<ItemStack> list = (List<ItemStack>) yaml.get("overflow." + key);
-                    if (list != null) storage.put(id, list);
-                } catch (Exception ex) {
-                    Bukkit.getLogger().warning("[OverflowStorage] Failed to load overflow for player: " + key);
-                }
+        storage.clear();
+        if (!yaml.contains("overflow")) return;
+        org.bukkit.configuration.ConfigurationSection section =
+                yaml.getConfigurationSection("overflow");
+        if (section == null) return;
+
+        for (String safeKey : section.getKeys(false)) {
+            try {
+                // Retrieve the original table key
+                String tableKey = yaml.getString("overflow-keys." + safeKey, safeKey);
+                List<ItemStack> list = (List<ItemStack>) yaml.get("overflow." + safeKey);
+                if (list != null) storage.put(tableKey, list);
+            } catch (Exception ex) {
+                Bukkit.getLogger().warning("[OverflowStorage] Failed to load overflow for: " + safeKey);
             }
         }
     }
 
-    public static void tryRepopulate(Player player, Inventory recyclerInv) {
-        UUID id = player.getUniqueId();
-        if (!storage.containsKey(id)) return;
+    /**
+     * Attempts to push overflow items back into the table's output slots.
+     * The player parameter is used only for feedback messages.
+     */
+    public static void tryRepopulate(String tableKey, Inventory recyclerInv, Player player) {
+        if (tableKey == null || !storage.containsKey(tableKey)) return;
 
         new BukkitRunnable() {
             @Override
             public void run() {
-                List<ItemStack> overflowItems = storage.get(id);
+                List<ItemStack> overflowItems = storage.get(tableKey);
                 if (overflowItems == null || overflowItems.isEmpty()) return;
 
                 Iterator<ItemStack> iterator = overflowItems.iterator();
@@ -100,6 +117,7 @@ public class OverflowStorage {
                     boolean placed = false;
 
                     for (int i = 27; i <= 53; i++) {
+                        if (!TableListener.isOutputSlot(i)) continue;
                         ItemStack slot = recyclerInv.getItem(i);
                         if (slot == null || slot.getType() == Material.AIR) {
                             recyclerInv.setItem(i, next);
@@ -122,10 +140,12 @@ public class OverflowStorage {
                 }
 
                 if (overflowItems.isEmpty()) {
-                    storage.remove(id);
-                    player.sendMessage(ChatColor.GREEN + "All overflow items have been returned!");
+                    storage.remove(tableKey);
+                    if (player != null && player.isOnline())
+                        player.sendMessage(ChatColor.GREEN + "All overflow items have been returned!");
                 } else {
-                    player.sendMessage(ChatColor.YELLOW + "Repopulated available slots from overflow.");
+                    if (player != null && player.isOnline())
+                        player.sendMessage(ChatColor.YELLOW + "Repopulated available slots from overflow.");
                 }
 
                 save();

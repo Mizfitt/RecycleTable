@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Handles creation, storage, and persistence of Recycling Table block inventories.
@@ -21,6 +22,7 @@ public class TablePersistence {
     // Keeps track of all placed recycling tables by their block location
     private static final Map<String, Inventory> inventoryMap = new HashMap<>();
     private static final Map<String, Long>      placedAt     = new HashMap<>();
+    private static final Map<String, UUID>      ownerMap     = new HashMap<>();
     // Reverse lookup so TableListener can find the key from an open inventory
     private static final Map<Inventory, String> invToKey     = new HashMap<>();
 
@@ -79,6 +81,23 @@ public class TablePersistence {
         Inventory inv = inventoryMap.remove(key);
         if (inv != null) invToKey.remove(inv);
         placedAt.remove(key);
+        ownerMap.remove(key);
+    }
+
+    /** Records the owner of a placed recycling table. */
+    public static void setOwner(Block b, UUID uuid) {
+        ownerMap.put(keyFor(b.getLocation()), uuid);
+    }
+
+    /** Returns the UUID of whoever placed this table, or null if unknown. */
+    public static UUID getOwner(String key) {
+        return ownerMap.get(key);
+    }
+
+    /** Returns true if the given player is the owner of the table at this block. */
+    public static boolean isOwner(Block b, org.bukkit.entity.Player p) {
+        UUID owner = ownerMap.get(keyFor(b.getLocation()));
+        return owner != null && owner.equals(p.getUniqueId());
     }
 
     /**
@@ -129,6 +148,8 @@ public class TablePersistence {
                 }
 
                 yaml.set(key + ".placedAt", placedAt.getOrDefault(key, System.currentTimeMillis()));
+                UUID owner = ownerMap.get(key);
+                if (owner != null) yaml.set(key + ".owner", owner.toString());
             }
 
             yaml.save(file);
@@ -166,6 +187,11 @@ public class TablePersistence {
                 invToKey.put(inv, key);
                 long placed = yc.getLong(key + ".placedAt", System.currentTimeMillis());
                 placedAt.put(key, placed);
+
+                String ownerStr = yc.getString(key + ".owner");
+                if (ownerStr != null) {
+                    try { ownerMap.put(key, UUID.fromString(ownerStr)); } catch (Exception ignored) {}
+                }
 
                 // Spawn hologram above this table
                 Location loc = getLocationForKey(key);

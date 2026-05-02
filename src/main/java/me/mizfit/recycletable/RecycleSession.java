@@ -65,8 +65,9 @@ public class RecycleSession {
     /** Returns a snapshot of items waiting in the queue (excludes the current item). */
     public List<ItemStack> getQueuedItems() { return new ArrayList<>(queue); }
 
-    /** Links this session to a placed table block so its hologram can be updated. */
+    /** Links this session to a placed table block so its hologram and overflow can be updated. */
     public void setTableKey(String key) { this.tableKey = key; }
+    public String getTableKey() { return tableKey; }
 
     /**
      * Start or resume a session, applying offline progress.
@@ -200,7 +201,7 @@ public class RecycleSession {
 
         if (!overflow.isEmpty()) {
             for (Map.Entry<Material, Integer> e : overflow.entrySet()) {
-                OverflowStorage.addItem(owner, new ItemStack(e.getKey(), e.getValue()));
+                OverflowStorage.addItem(tableKey, new ItemStack(e.getKey(), e.getValue()));
             }
             if (pl != null)
                 pl.sendMessage(ChatColor.YELLOW + "Output full — excess items saved to overflow storage.");
@@ -219,7 +220,7 @@ public class RecycleSession {
                         break;
                     }
                 }
-                if (!placed) OverflowStorage.addItem(owner, book);
+                if (!placed) OverflowStorage.addItem(tableKey, book);
             }
         }
 

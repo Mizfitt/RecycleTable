@@ -1,10 +1,12 @@
 package me.mizfit.recycletable;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -15,6 +17,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
+import java.util.UUID;
 
 public class TableListener implements Listener {
     public static final String GUI_TITLE = ChatColor.DARK_GREEN + "Recycling Table";
@@ -26,14 +29,28 @@ public class TableListener implements Listener {
     // Tracks all currently open recycling table inventories for reliable identification
     private static final Set<Inventory> activeInventories = new HashSet<>();
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onUse(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
         Block b = e.getClickedBlock();
         if (b == null || b.getType() != Material.CRAFTING_TABLE || !TablePersistence.isRecyclingTableBlock(b)) return;
 
+        // Respect any cancellation from protection plugins that ran before us
+        if (e.isCancelled()) return;
+
         Player p = e.getPlayer();
+        String tableKey = HologramManager.keyFor(b.getLocation());
+
+        // Check ownership / protection plugin access
+        if (!TablePersistence.isOwner(b, p) && !ProtectionChecker.isTrusted(p, b.getLocation())) {
+            UUID ownerUuid = TablePersistence.getOwner(tableKey);
+            String ownerName = ownerUuid != null ? Bukkit.getOfflinePlayer(ownerUuid).getName() : null;
+            if (ownerName == null) ownerName = "someone else";
+            p.sendMessage(ChatColor.RED + "This Recycling Table belongs to " + ownerName + ".");
+            e.setCancelled(true);
+            return;
+        }
         Inventory inv = TablePersistence.getInventoryForBlock(b);
         if (inv == null) inv = TablePersistence.createInventoryForBlock(b);
 
@@ -46,7 +63,6 @@ public class TableListener implements Listener {
         }
 
         // Ensure the hologram-cycle button always exists
-        String tableKey = HologramManager.keyFor(b.getLocation());
         inv.setItem(HOLOGRAM_BUTTON_SLOT, makeHologramButton(HologramManager.getMode(tableKey)));
 
         activeInventories.add(inv);

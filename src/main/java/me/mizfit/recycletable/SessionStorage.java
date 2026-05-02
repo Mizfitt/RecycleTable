@@ -40,6 +40,7 @@ public class SessionStorage {
             cfg.set(base + ".progress", s.getProgress());
             cfg.set(base + ".lastActiveTime", s.getLastActiveTime());
             cfg.set(base + ".items", s.serializeItems());
+            if (s.getTableKey() != null) cfg.set(base + ".tableKey", s.getTableKey());
         }
 
         try {
@@ -69,6 +70,10 @@ public class SessionStorage {
                 // Create a temporary GUI for restoration
                 Inventory tempInv = Bukkit.createInventory(null, 54, TableListener.GUI_TITLE);
                 RecycleSession session = new RecycleSession(id, queued, tempInv, lastActiveTime);
+
+                // Restore table key so hologram and overflow work after restart
+                String tableKey = cfg.getString("sessions." + key + ".tableKey");
+                if (tableKey != null) session.setTableKey(tableKey);
 
                 // Start with offline compensation
                 session.start(RecycleTable.getInstance(), offlineSeconds);
