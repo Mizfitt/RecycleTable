@@ -209,12 +209,13 @@ public class RecycleSession {
                 pl.sendMessage(ChatColor.YELLOW + "Output full — excess items saved to overflow storage.");
         }
 
-        if (ConfigManager.enchantmentsEnabled() && item.hasItemMeta() && item.getItemMeta().hasEnchants()) {
+        if (ConfigManager.enchantmentsEnabled() && EnchantUtils.hasAnyEnchants(item)) {
             Map<org.bukkit.enchantments.Enchantment, Integer> returned = EnchantUtils.getReturnedEnchantments(item);
             List<ItemStack> books = EnchantUtils.generateEnchantmentBooks(returned);
             for (ItemStack book : books) {
                 boolean placed = false;
                 for (int i = 27; i <= 53; i++) {
+                    if (!TableListener.isOutputSlot(i)) continue;
                     ItemStack slot = guiInventory.getItem(i);
                     if (slot == null || slot.getType() == Material.AIR) {
                         guiInventory.setItem(i, book);

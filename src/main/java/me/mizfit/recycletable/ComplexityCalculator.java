@@ -1,7 +1,9 @@
 package me.mizfit.recycletable;
 
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -175,6 +177,27 @@ public class ComplexityCalculator {
     }
 
     /**
+     * Calculates an enchantment bonus (0..enchantment-weight) to add on top of the base signal.
+     * Each enchantment contributes its level / maxLevel ("fullness") to a running sum,
+     * which is then normalised by 5 (typical max useful enchantments on one item) and
+     * scaled by the config weight so admins control how much enchantments can affect time.
+     */
+    private static double computeEnchantBonus(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 0.0;
+        ItemMeta meta = item.getItemMeta();
+        if (!meta.hasEnchants()) return 0.0;
+
+        double weight = cfgDouble("complexity.enchantment-weight", 0.2);
+        double sum = 0.0;
+        for (Map.Entry<Enchantment, Integer> e : meta.getEnchants().entrySet()) {
+            int max = e.getKey().getMaxLevel();
+            sum += (max > 0) ? (double) e.getValue() / max : 1.0;
+        }
+        // Divide by 5 to normalise (a fully loaded item hits the cap, not beyond it)
+        return clamp01(sum / 5.0 * weight);
+    }
+
+    /**
      * Main complexity (1..250)
      */
     public static int calculateComplexity(ItemStack item) {
@@ -214,8 +237,11 @@ public class ComplexityCalculator {
         double smoothed = (1.0 - smoothing) * baseSignal + (smoothing) * adjusted;
         smoothed = clamp01(smoothed);
 
+        // Enchantment bonus: heavier enchantments push the signal (and therefore time) upward
+        double finalSignal = clamp01(smoothed + computeEnchantBonus(item));
+
         // Map 0..1 to 1..250
-        int score = (int) Math.round(1 + smoothed * 249.0);
+        int score = (int) Math.round(1 + finalSignal * 249.0);
         if (score < 1) score = 1;
         if (score > 250) score = 250;
         return score;

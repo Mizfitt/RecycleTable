@@ -93,6 +93,12 @@ complexity:
   # Max recipe depth to scan when estimating crafting complexity
   max-depth: 6
 
+  # How much enchantments can add to the complexity signal (0.0-1.0).
+  # Each enchantment contributes level/maxLevel; the sum is normalised by 5
+  # (typical max enchantments on one item) then scaled by this weight.
+  # e.g. 0.2 means a fully loaded item gains at most +0.2 on the 0-1 scale.
+  enchantment-weight: 0.2
+
   # Extra complexity for smelted items (ingots, glass, cooked food, etc.)
   smelting-bias: 0.15
 
