@@ -199,9 +199,11 @@ public class RecycleSession {
             if (remaining > 0) overflow.put(out.getKey(), remaining);
         }
 
+        // Collect all overflow items into one list and write to disk a single time
+        List<ItemStack> overflowBatch = new ArrayList<>();
         if (!overflow.isEmpty()) {
             for (Map.Entry<Material, Integer> e : overflow.entrySet()) {
-                OverflowStorage.addItem(tableKey, new ItemStack(e.getKey(), e.getValue()));
+                overflowBatch.add(new ItemStack(e.getKey(), e.getValue()));
             }
             if (pl != null)
                 pl.sendMessage(ChatColor.YELLOW + "Output full — excess items saved to overflow storage.");
@@ -220,8 +222,13 @@ public class RecycleSession {
                         break;
                     }
                 }
-                if (!placed) OverflowStorage.addItem(tableKey, book);
+                if (!placed) overflowBatch.add(book);
             }
+        }
+
+        // Single batched write — avoids repeated file saves for the same item
+        if (!overflowBatch.isEmpty()) {
+            OverflowStorage.addItems(tableKey, overflowBatch);
         }
 
         // ✅ Hook: adaptive learning analytics (auto-balances future complexity)

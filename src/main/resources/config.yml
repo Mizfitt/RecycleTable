@@ -68,6 +68,7 @@ enchantments:
 # ==============================================================
 overflow:
   repopulate-delay: 3.0  # seconds
+  max-items: 500         # max total items stored in overflow per table (prevents memory abuse)
 
 
 # ==============================================================

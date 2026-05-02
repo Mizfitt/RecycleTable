@@ -68,6 +68,13 @@ public class TableListener implements Listener {
         activeInventories.add(inv);
         p.openInventory(inv);
         e.setCancelled(true);
+
+        // Notify the player if overflow items are waiting to be returned
+        if (OverflowStorage.hasOverflow(tableKey)) {
+            int stacks = OverflowStorage.overflowStackCount(tableKey);
+            p.sendMessage(ChatColor.GOLD + "⚠ " + stacks + " overflow stack(s) are waiting — "
+                    + "take items from the output area to retrieve them.");
+        }
     }
 
     @EventHandler
