@@ -9,6 +9,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
@@ -22,18 +23,20 @@ public class TableListener implements Listener {
     private static final int RIGHT_START = 27, RIGHT_END = 53;
     private static final int RECYCLE_BUTTON_SLOT = 22;
 
+    // Tracks all currently open recycling table inventories for reliable identification
+    private static final Set<Inventory> activeInventories = new HashSet<>();
+
     @EventHandler
     public void onUse(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK && e.getAction() != Action.RIGHT_CLICK_AIR) return;
         Player p = e.getPlayer();
 
         if (e.getClickedBlock() == null) {
-            p.getInventory().getItemInMainHand();
             if (RecyclingTableItem.isRecyclingTable(p.getInventory().getItemInMainHand())) {
-
                 Inventory inv = Bukkit.createInventory(null, 54, GUI_TITLE);
                 inv.setItem(RECYCLE_BUTTON_SLOT, UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
                         Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
+                activeInventories.add(inv);
                 p.openInventory(inv);
                 e.setCancelled(true);
                 return;
@@ -53,6 +56,7 @@ public class TableListener implements Listener {
                                 Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
             }
 
+            activeInventories.add(inv);
             p.openInventory(inv);
             e.setCancelled(true);
         }
@@ -60,14 +64,12 @@ public class TableListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        e.getView();
-        e.getView().getTitle();
         if (!GUI_TITLE.equals(e.getView().getTitle())) return;
 
         int raw = e.getRawSlot();
         if (raw < 0 || raw >= 54) return;
 
-        // Prevent any modification of control button
+        // Prevent any modification of the recycle button
         if (raw == RECYCLE_BUTTON_SLOT) {
             e.setCancelled(true);
             if (e.getClick().isShiftClick() || e.getCursor() != null) return;
@@ -96,18 +98,13 @@ public class TableListener implements Listener {
             session.start(RecycleTable.getInstance(), 0);
             p.sendMessage(ChatColor.GREEN + "Recycling started. Outputs will appear on the right.");
         }
-
-        // Prevent moving the recycle button
-        if (raw == RECYCLE_BUTTON_SLOT) e.setCancelled(true);
     }
 
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent e) {
-        e.getView();
-        e.getView().getTitle();
         if (!GUI_TITLE.equals(e.getView().getTitle())) return;
 
-        // Prevent dragging items over control button slot
+        // Prevent dragging items over the recycle button slot
         for (int slot : e.getRawSlots()) {
             if (slot == RECYCLE_BUTTON_SLOT) {
                 e.setCancelled(true);
@@ -116,34 +113,31 @@ public class TableListener implements Listener {
         }
     }
 
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent e) {
+        activeInventories.remove(e.getInventory());
+    }
+
+    /**
+     * Returns true if the given inventory is an active recycling table GUI.
+     * Uses a tracked Set instead of fragile viewer inspection.
+     */
     public static boolean isRecyclingTableInventory(Inventory inv) {
-        try {
-            return inv != null && GUI_TITLE.equals(inv.getViewers().get(0).getOpenInventory().getTitle());
-        } catch (Throwable t) {
-            return false;
-        }
+        return inv != null && activeInventories.contains(inv);
     }
-    /**
-     * Checks whether a given slot index corresponds to an output slot.
-     * Output slots are 27–53 (right side of the GUI).
-     */
+
+    /** Output slots are 27-53 (right side of the GUI). */
     public static boolean isOutputSlot(int slot) {
-        return slot >= 27 && slot <= 53;
+        return slot >= RIGHT_START && slot <= RIGHT_END;
     }
 
-    /**
-     * Checks whether a given slot index corresponds to an input slot.
-     * Input slots are 0–26 (left side of the GUI).
-     */
+    /** Input slots are 0-26 (left side of the GUI). */
     public static boolean isInputSlot(int slot) {
-        return slot >= 0 && slot <= 26;
+        return slot >= LEFT_START && slot <= LEFT_END;
     }
 
-    /**
-     * Checks whether the slot is the recycle button slot.
-     */
+    /** The recycle button slot. */
     public static boolean isControlSlot(int slot) {
-        return slot == 22;
+        return slot == RECYCLE_BUTTON_SLOT;
     }
-
 }

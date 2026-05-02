@@ -33,13 +33,10 @@ public class RecycleSession {
         this.guiInventory = guiInventory;
         this.lastActiveTime = System.currentTimeMillis();
 
-        // Preserve left-to-right, top-to-bottom order
+        // Queue full stacks — time and output are scaled by amount in processing
         for (ItemStack is : inputs) {
-            int amt = Math.max(1, is.getAmount());
-            for (int i = 0; i < amt; i++) {
-                ItemStack single = is.clone();
-                single.setAmount(1);
-                queue.add(single);
+            if (is != null && is.getType() != Material.AIR && is.getAmount() > 0) {
+                queue.add(is.clone());
             }
         }
     }
@@ -72,6 +69,7 @@ public class RecycleSession {
             int complexity = Math.max(1, Math.min(250, ComplexityCalculator.calculateComplexity(peek)));
             long totalSeconds = ComplexityCalculator.mapScoreToSeconds(complexity);
             totalSeconds = (long) Math.ceil(totalSeconds / ConfigManager.getSpeedMultiplier());
+            totalSeconds *= peek.getAmount(); // scale time by stack size
 
             if (offlineSeconds >= totalSeconds) {
                 processSingleItem(peek);
@@ -96,6 +94,7 @@ public class RecycleSession {
         currentComplexity = Math.max(1, Math.min(250, ComplexityCalculator.calculateComplexity(item)));
         long totalSeconds = ComplexityCalculator.mapScoreToSeconds(currentComplexity);
         totalSeconds = (long) Math.ceil(totalSeconds / ConfigManager.getSpeedMultiplier());
+        totalSeconds *= item.getAmount(); // scale time by stack size
 
         long secondsToRun = (remainingSeconds > 0 ? remainingSeconds : totalSeconds);
         this.timeLeftTicks = secondsToRun * 20L;
@@ -132,7 +131,7 @@ public class RecycleSession {
         Map<Material, Integer> aggregated = new HashMap<>();
 
         for (ItemStack raw : decomposed) {
-            int baseAmt = raw.getAmount();
+            int baseAmt = raw.getAmount() * item.getAmount(); // scale by stack size
             double scaled = baseAmt * durabilityFactor;
             int floored = (int) Math.floor(scaled);
             if (floored > 0) aggregated.merge(raw.getType(), floored, Integer::sum);
@@ -148,9 +147,9 @@ public class RecycleSession {
             double r = Math.random(), cumulative = 0.0;
             for (Map.Entry<Material, Integer> e : ratio.entrySet()) {
                 cumulative += e.getValue() / (double) total;
-                if (r <= cumulative) { aggregated.put(e.getKey(), 1); break; }
+                if (r <= cumulative) { aggregated.put(e.getKey(), item.getAmount()); break; }
             }
-            if (aggregated.isEmpty() && !ratio.isEmpty()) aggregated.put(ratio.keySet().iterator().next(), 1);
+            if (aggregated.isEmpty() && !ratio.isEmpty()) aggregated.put(ratio.keySet().iterator().next(), item.getAmount());
         }
 
         Player pl = Bukkit.getPlayer(owner);
@@ -204,7 +203,7 @@ public class RecycleSession {
         AnalyticsManager.logRecycle(item);
 
         if (pl != null)
-            pl.sendMessage(ChatColor.GREEN + "Processed 1x " + item.getType().name());
+            pl.sendMessage(ChatColor.GREEN + "Processed " + item.getAmount() + "x " + item.getType().name());
     }
 
     private void finish() {

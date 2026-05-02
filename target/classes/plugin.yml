@@ -1,7 +1,13 @@
-name: Recycle Table
-version: '1.0-SNAPSHOT'
+name: RecycleTable
 main: me.mizfit.recycletable.RecycleTable
-api-version: '1.20'
+version: 1.3
+api-version: 1.20
 commands:
   giverecycler:
-    description: Give yourself a Recycling Table
+    description: Gives the player a Recycling Table
+    usage: /giverecycler
+    permission: recycletable.give
+  recycletable:
+    description: RecycleTable admin commands
+    usage: /recycletable reload
+    permission: recycletable.admin

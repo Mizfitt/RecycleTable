@@ -106,12 +106,19 @@ public class RecipeManager {
         return recipes.get(mat);
     }
 
-    /** Fully decomposes a material into base ingredients (recursive) */
+    /** Fully decomposes a material into base ingredients (recursive, cycle-safe) */
     public static List<ItemStack> decomposeToRaw(ItemStack item) {
+        return decomposeToRaw(item, new HashSet<>());
+    }
+
+    private static List<ItemStack> decomposeToRaw(ItemStack item, Set<Material> seen) {
         if (item == null || item.getType() == Material.AIR) return Collections.emptyList();
         Material type = item.getType();
 
         if (blacklist.contains(type)) return Collections.singletonList(item.clone());
+
+        // Cycle guard — if we've already visited this material in this chain, treat it as a base
+        if (seen.contains(type)) return Collections.singletonList(item.clone());
 
         // Cache check
         if (cache.containsKey(type)) return cloneList(cache.get(type));
@@ -122,6 +129,7 @@ public class RecipeManager {
             return Collections.singletonList(item.clone());
         }
 
+        seen.add(type);
         List<ItemStack> result = new ArrayList<>();
         for (ItemStack ingredient : recipe.getIngredients()) {
             if (ingredient == null) continue;
@@ -133,7 +141,7 @@ public class RecipeManager {
 
             RecipeData sub = getRecipeFor(ingredient.getType());
             if (sub != null && !ingredient.getType().equals(type)) {
-                List<ItemStack> subItems = decomposeToRaw(ingredient);
+                List<ItemStack> subItems = decomposeToRaw(ingredient, seen);
                 for (ItemStack si : subItems) {
                     ItemStack clone = si.clone();
                     clone.setAmount(clone.getAmount() * ingredient.getAmount());

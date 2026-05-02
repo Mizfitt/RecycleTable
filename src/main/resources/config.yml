@@ -73,75 +73,64 @@ overflow:
 # ==============================================================
 # 🧠 COMPLEXITY CALCULATOR
 # --------------------------------------------------------------
-# Determines how long each item takes to recycle, based on
-# its rarity, material depth, crafting tree, and other traits.
-#
-# The following values control *weights* for each algorithmic
-# feature, meaning you can fine-tune complexity difficulty.
+# Determines how long each item takes to recycle based on
+# rarity, crafting depth, dimension origin, and other traits.
 # ==============================================================
 complexity:
 
-  # --- Core algorithmic feature weights ---
-  features:
-    base: 3.0                # Base complexity for all items
-    unstackable_bonus: 6.0   # Items that can’t stack (like armor/tools)
-    low_stack_bonus: 2.5     # Stack size under 16
-    durability_bonus: 5.0    # Items with durability
-    nether_bonus: 4.0        # Crafted from Nether materials
-    end_bonus: 4.5           # Crafted from End materials
-    rare_mat_bonus: 6.0      # Diamonds, Netherite, etc.
-    unit_weight: 1.0         # Weight of each ingredient’s quantity
-    unique_type_weight: 2.0  # Multiplier for diversity of ingredients
-    depth_weight: 4.0        # Each level of crafting depth adds time
-    max_depth_scan: 8.0      # Max recursion levels when checking recipes
-    tool_bonus: 6.0          # Tools
-    weapon_bonus: 7.0        # Weapons
-    armor_bonus: 7.5         # Armor
-    redstone_bonus: 5.0      # Redstone components
-    smelt_bonus: 3.0         # Smelted items (ingots, glass, etc.)
-    common_penalty: 1.5      # Common blocks get slightly faster times
-    basic_mats_penalty: 1.0  # Basic mats (wood, stone, dirt) faster recycle
+  # Time range for recycling (in seconds)
+  min-seconds: 15       # 15 seconds (e.g. dirt, wood)
+  max-seconds: 10800    # 3 hours    (e.g. netherite gear)
 
-  # --- Mapping score boundaries ---
-  map:
-    min_score: 1
-    max_score: 250
+  # How much rarity vs. recipe depth each contribute (should sum to 1.0)
+  base-rarity-weight: 0.5
+  base-difficulty-weight: 0.5
 
-  # --- Time mapping range ---
-  #  Items with the lowest complexity take 15s
-  #  Items with the highest complexity take 3 hours
-  time:
-    min_seconds: 15
-    max_seconds: 10800
+  # Smoothing factor — higher = more stable, less reactive to analytics (0.0-1.0)
+  smoothing: 0.3
+
+  # Max recipe depth to scan when estimating crafting complexity
+  max-depth: 6
+
+  # Extra complexity for smelted items (ingots, glass, cooked food, etc.)
+  smelting-bias: 0.15
+
+  # Extra complexity for unstackable items (armor, tools, etc.)
+  unstackable-bias: 0.1
+
+  # Dimension origin bonuses
+  dimension-bias-overworld: 0.0
+  dimension-bias-nether: 0.15
+  dimension-bias-end: 0.25
 
 
 # ==============================================================
 # 📊 ANALYTICS & AUTO-REBALANCING
 # --------------------------------------------------------------
-# The plugin monitors how players recycle items to adjust
-# complexity and rarity over time. It automatically rebalances
-# based on player behavior to keep time scaling fair.
+# The plugin tracks which items players recycle to gently
+# adjust complexity over time and keep things balanced.
 # ==============================================================
 analytics:
 
-  # Save updates immediately (true) or batch them on intervals (false)
-  immediate-save: false
+  # Whether analytics tracking is active at all
+  enabled: true
 
-  rebalance:
-    interval-minutes: 180   # How often the system rebalances globally
+  # How often (in seconds) analytics data is saved to disk
+  save-interval-seconds: 300   # 5 minutes
 
-  frequency:
-    increment: 1.0         # How much frequency increases per recycle
-    decay-per-rebalance: 0.90  # Reduces frequency to prevent inflation
-    min-multiplier: 0.65       # Minimum effect multiplier
-    max-multiplier: 1.15       # Maximum effect multiplier
-    curve: 0.60                # Controls exponential bias
+  # How fast old usage data fades out each save cycle (0.0-1.0)
+  # Lower = data persists longer; higher = reacts faster to recent trends
+  decay-rate: 0.05
 
-  depth:
-    ema-alpha: 0.10        # Weight for smoothing average recipe depth
-    target-avg: 2.5        # Target average recipe depth to maintain balance
-    balance-room: 0.8      # How much variance is allowed before adjusting
-    tanh-k: 0.6            # Curve slope for balancing adjustments
+  # How much analytics can shift complexity scores (0.0-1.0)
+  # Lower = more stable times; higher = more adaptive
+  rebalance-weight: 0.25
+
+  # How much observed recipe depth influences complexity
+  depth-weight: 0.4
+
+  # How much item usage frequency influences complexity
+  usage-weight: 0.6
 
 
 # ==============================================================

@@ -192,8 +192,10 @@ public final class AnalyticsManager {
     }
 
     public static void logRecycle(ItemStack item) {
+        if (!enabled || item == null) return;
+        int depth = ComplexityCalculator.estimateRecipeDepth(item.getType());
+        recordProcessed(item, depth);
     }
-
     /* ------------ helpers ------------ */
 
     private static final class DepthStats {

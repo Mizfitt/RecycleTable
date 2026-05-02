@@ -1,9 +1,7 @@
 package me.mizfit.recycletable;
 
+import org.bukkit.ChatColor;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.Map;
-import java.util.UUID;
 
 public class RecycleTable extends JavaPlugin {
     private static RecycleTable instance;
@@ -17,7 +15,8 @@ public class RecycleTable extends JavaPlugin {
         // Load config & managers
         ConfigManager.load(this);
         RecipeManager.initialize();
-        OverflowStorage.initialize(getDataFolder()); // ✅ Correct usage: pass the File data folder
+        OverflowStorage.initialize(getDataFolder());
+        AnalyticsManager.initialize(this);
 
         // Register listeners
         getServer().getPluginManager().registerEvents(new TableListener(), this);
@@ -25,6 +24,21 @@ public class RecycleTable extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlaceListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
         getServer().getPluginManager().registerEvents(new OverflowListener(), this);
+
+        // Command: /recycletable reload
+        if (getCommand("recycletable") != null) {
+            getCommand("recycletable").setExecutor((sender, cmd, label, args) -> {
+                if (args.length == 0 || !args[0].equalsIgnoreCase("reload")) {
+                    sender.sendMessage(ChatColor.YELLOW + "Usage: /recycletable reload");
+                    return true;
+                }
+                reloadConfig();
+                ConfigManager.load(this);
+                RecipeManager.initialize();
+                sender.sendMessage(ChatColor.GREEN + "RecycleTable config reloaded.");
+                return true;
+            });
+        }
 
         // Command: /giverecycler
         if (getCommand("giverecycler") != null) {
@@ -39,21 +53,9 @@ public class RecycleTable extends JavaPlugin {
             });
         }
 
-        // Session persistence
+        // Session persistence — loadSessions() handles registration and start internally
         storage = new SessionStorage(getDataFolder());
-        Map<UUID, RecycleSession> loaded = storage.loadSessions();
-
-        for (Map.Entry<UUID, RecycleSession> e : loaded.entrySet()) {
-            RecycleSession s = e.getValue();
-            SessionManager.registerSession(e.getKey(), s);
-
-            // Apply offline compensation
-            long offlineSeconds = 0L;
-            if (s.getLastActiveTime() > 0)
-                offlineSeconds = (System.currentTimeMillis() - s.getLastActiveTime()) / 1000L;
-
-            if (s.isActive()) s.start(this, offlineSeconds);
-        }
+        storage.loadSessions();
 
         // Load placed tables
         TablePersistence.loadPlacedTables(this);
@@ -63,9 +65,10 @@ public class RecycleTable extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        AnalyticsManager.shutdown();
         storage.saveSessions(SessionManager.getAllSessions());
         TablePersistence.savePlacedTables(this);
-        OverflowStorage.save(); // ✅ Save overflow storage on shutdown
+        OverflowStorage.save();
     }
 
     public static RecycleTable getInstance() { return instance; }
