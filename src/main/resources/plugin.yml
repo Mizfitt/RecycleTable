@@ -2,7 +2,7 @@ name: RecycleTable
 main: me.mizfit.recycletable.RecycleTable
 version: 1.3
 api-version: 1.20
-softdepend: [GriefPrevention, WorldGuard, Towny, Lands, GriefDefender]
+softdepend: [GriefPrevention, WorldGuard, Towny, Lands, GriefDefender, AdvancedEnchantments]
 commands:
   giverecycler:
     description: Gives the player a Recycling Table

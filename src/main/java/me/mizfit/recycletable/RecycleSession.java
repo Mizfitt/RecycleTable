@@ -209,21 +209,42 @@ public class RecycleSession {
                 pl.sendMessage(ChatColor.YELLOW + "Output full — excess items saved to overflow storage.");
         }
 
-        if (ConfigManager.enchantmentsEnabled() && EnchantUtils.hasAnyEnchants(item)) {
-            Map<org.bukkit.enchantments.Enchantment, Integer> returned = EnchantUtils.getReturnedEnchantments(item);
-            List<ItemStack> books = EnchantUtils.generateEnchantmentBooks(returned);
-            for (ItemStack book : books) {
-                boolean placed = false;
-                for (int i = 27; i <= 53; i++) {
-                    if (!TableListener.isOutputSlot(i)) continue;
-                    ItemStack slot = guiInventory.getItem(i);
-                    if (slot == null || slot.getType() == Material.AIR) {
-                        guiInventory.setItem(i, book);
-                        placed = true;
-                        break;
+        if (ConfigManager.enchantmentsEnabled()) {
+            // ── Vanilla enchantment books (level reduced by one tier) ────────
+            if (EnchantUtils.hasAnyEnchants(item)) {
+                Map<org.bukkit.enchantments.Enchantment, Integer> returned = EnchantUtils.getReturnedEnchantments(item);
+                List<ItemStack> books = EnchantUtils.generateEnchantmentBooks(returned);
+                for (ItemStack book : books) {
+                    boolean placed = false;
+                    for (int i = 27; i <= 53; i++) {
+                        if (!TableListener.isOutputSlot(i)) continue;
+                        ItemStack slot = guiInventory.getItem(i);
+                        if (slot == null || slot.getType() == Material.AIR) {
+                            guiInventory.setItem(i, book);
+                            placed = true;
+                            break;
+                        }
                     }
+                    if (!placed) overflowBatch.add(book);
                 }
-                if (!placed) overflowBatch.add(book);
+            }
+
+            // ── AdvancedEnchantments books (exact level, no reduction) ───────
+            if (AEIntegration.isLoaded()) {
+                List<ItemStack> aeBooks = AEIntegration.getEnchantmentBooks(item);
+                for (ItemStack book : aeBooks) {
+                    boolean placed = false;
+                    for (int i = 27; i <= 53; i++) {
+                        if (!TableListener.isOutputSlot(i)) continue;
+                        ItemStack slot = guiInventory.getItem(i);
+                        if (slot == null || slot.getType() == Material.AIR) {
+                            guiInventory.setItem(i, book);
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (!placed) overflowBatch.add(book);
+                }
             }
         }
 

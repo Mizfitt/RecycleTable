@@ -242,6 +242,13 @@ public class ComplexityCalculator {
 
         // Map 0..1 to 1..250
         int score = (int) Math.round(1 + finalSignal * 249.0);
+
+        // Flat multiplier if the item carries any AdvancedEnchantments enchants
+        if (AEIntegration.isLoaded() && AEIntegration.hasAEEnchants(item)) {
+            double aeMultiplier = cfgDouble("complexity.ae-enchantment-multiplier", 1.5);
+            score = (int) Math.round(score * aeMultiplier);
+        }
+
         if (score < 1) score = 1;
         if (score > 250) score = 250;
         return score;

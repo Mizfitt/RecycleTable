@@ -99,6 +99,11 @@ complexity:
   # e.g. 0.2 means a fully loaded item gains at most +0.2 on the 0-1 scale.
   enchantment-weight: 0.2
 
+  # Flat score multiplier applied when an item has any AdvancedEnchantments
+  # enchantments on it. 1.5 = 50% longer to recycle than a plain item.
+  # Only takes effect if AdvancedEnchantments is installed.
+  ae-enchantment-multiplier: 1.5
+
   # Extra complexity for smelted items (ingots, glass, cooked food, etc.)
   smelting-bias: 0.15
 
