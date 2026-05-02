@@ -18,6 +18,7 @@ public class RecycleTable extends JavaPlugin {
         OverflowStorage.initialize(getDataFolder());
         AnalyticsManager.initialize(this);
         AEIntegration.initialize();
+        RecipeRegistry.registerAll(this);
 
         // Register listeners
         getServer().getPluginManager().registerEvents(new TableListener(), this);
