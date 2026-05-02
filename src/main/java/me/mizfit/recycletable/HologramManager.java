@@ -172,7 +172,7 @@ public class HologramManager {
         int total = 1 + session.getQueuedItems().size(); // current item + queued items
 
         setLine(key, 0, ChatColor.AQUA  + "⚗ Recycling Queue");
-        setLine(key, 1, ChatColor.WHITE + total + " item" + (total == 1 ? "" : "s") + " remaining");
+        setLine(key, 1, ChatColor.WHITE + "" + total + " item" + (total == 1 ? "" : "s") + " remaining");
         setLine(key, 2, ChatColor.WHITE + "⏳ " + ChatColor.GREEN + formatTime(totalSecs) + " total");
     }
 
