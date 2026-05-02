@@ -97,8 +97,14 @@ public class OverflowStorage {
         return items == null ? 0 : items.size();
     }
 
+    /** Returns the total number of individual items (sum of all stack amounts) in overflow for this table. */
+    public static int overflowItemTotal(String tableKey) {
+        return totalItemCount(storage.get(tableKey));
+    }
+
     /** Returns the total number of individual items (sum of all stack sizes) in a list. */
     private static int totalItemCount(List<ItemStack> list) {
+        if (list == null) return 0;
         int total = 0;
         for (ItemStack i : list) if (i != null) total += i.getAmount();
         return total;

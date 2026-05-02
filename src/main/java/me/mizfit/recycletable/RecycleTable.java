@@ -57,6 +57,20 @@ public class RecycleTable extends JavaPlugin {
         storage = new SessionStorage(getDataFolder());
         storage.loadSessions();
 
+        // Hourly reminder: tell online players if their table's overflow has items waiting
+        final long ONE_HOUR_TICKS = 72000L;
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            for (org.bukkit.entity.Player p : getServer().getOnlinePlayers()) {
+                String tableKey = TablePersistence.getTableKeyForOwner(p.getUniqueId());
+                if (tableKey == null) continue;
+                if (!OverflowStorage.hasOverflow(tableKey)) continue;
+                int total = OverflowStorage.overflowItemTotal(tableKey);
+                p.sendMessage(org.bukkit.ChatColor.GOLD + "⚠ Your Recycling Table is full! "
+                        + org.bukkit.ChatColor.YELLOW + total + " item(s) are sitting in overflow storage. "
+                        + org.bukkit.ChatColor.GRAY + "Open your table and take items from the output to free up space.");
+            }
+        }, ONE_HOUR_TICKS, ONE_HOUR_TICKS);
+
         // Load placed tables
         TablePersistence.loadPlacedTables(this);
 

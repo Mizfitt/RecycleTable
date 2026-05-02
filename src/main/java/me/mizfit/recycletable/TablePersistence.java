@@ -109,6 +109,17 @@ public class TablePersistence {
     }
 
     /**
+     * Returns the "world:x:y:z" key of the table owned by this player,
+     * or null if they have no placed table.
+     */
+    public static String getTableKeyForOwner(UUID uuid) {
+        for (Map.Entry<String, UUID> entry : ownerMap.entrySet()) {
+            if (uuid.equals(entry.getValue())) return entry.getKey();
+        }
+        return null;
+    }
+
+    /**
      * Returns the "world:x:y:z" key for the given inventory, or null if it is not a placed table.
      * Used by TableListener to link a RecycleSession to its hologram.
      */
