@@ -1,6 +1,5 @@
 package me.mizfit.recycletable;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -29,42 +28,30 @@ public class TableListener implements Listener {
 
     @EventHandler
     public void onUse(PlayerInteractEvent e) {
-        if (e.getAction() != Action.RIGHT_CLICK_BLOCK && e.getAction() != Action.RIGHT_CLICK_AIR) return;
-        Player p = e.getPlayer();
-
-        if (e.getClickedBlock() == null) {
-            if (RecyclingTableItem.isRecyclingTable(p.getInventory().getItemInMainHand())) {
-                Inventory inv = Bukkit.createInventory(null, 54, GUI_TITLE);
-                inv.setItem(RECYCLE_BUTTON_SLOT, UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
-                        Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
-                activeInventories.add(inv);
-                p.openInventory(inv);
-                e.setCancelled(true);
-                return;
-            }
-        }
+        if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
         Block b = e.getClickedBlock();
-        if (b != null && b.getType() == Material.CRAFTING_TABLE && TablePersistence.isRecyclingTableBlock(b)) {
-            Inventory inv = TablePersistence.getInventoryForBlock(b);
-            if (inv == null) inv = TablePersistence.createInventoryForBlock(b);
+        if (b == null || b.getType() != Material.CRAFTING_TABLE || !TablePersistence.isRecyclingTableBlock(b)) return;
 
-            // Ensure the recycle button always exists
-            if (inv.getItem(RECYCLE_BUTTON_SLOT) == null ||
-                    Objects.requireNonNull(inv.getItem(RECYCLE_BUTTON_SLOT)).getType() == Material.AIR) {
-                inv.setItem(RECYCLE_BUTTON_SLOT,
-                        UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
-                                Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
-            }
+        Player p = e.getPlayer();
+        Inventory inv = TablePersistence.getInventoryForBlock(b);
+        if (inv == null) inv = TablePersistence.createInventoryForBlock(b);
 
-            // Ensure the hologram-cycle button always exists (placed tables only)
-            String tableKey = HologramManager.keyFor(b.getLocation());
-            inv.setItem(HOLOGRAM_BUTTON_SLOT, makeHologramButton(HologramManager.getMode(tableKey)));
-
-            activeInventories.add(inv);
-            p.openInventory(inv);
-            e.setCancelled(true);
+        // Ensure the recycle button always exists
+        if (inv.getItem(RECYCLE_BUTTON_SLOT) == null ||
+                Objects.requireNonNull(inv.getItem(RECYCLE_BUTTON_SLOT)).getType() == Material.AIR) {
+            inv.setItem(RECYCLE_BUTTON_SLOT,
+                    UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
+                            Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
         }
+
+        // Ensure the hologram-cycle button always exists
+        String tableKey = HologramManager.keyFor(b.getLocation());
+        inv.setItem(HOLOGRAM_BUTTON_SLOT, makeHologramButton(HologramManager.getMode(tableKey)));
+
+        activeInventories.add(inv);
+        p.openInventory(inv);
+        e.setCancelled(true);
     }
 
     @EventHandler
@@ -79,7 +66,7 @@ public class TableListener implements Listener {
             e.setCancelled(true);
             Inventory inv = e.getInventory();
             String tableKey = TablePersistence.getKeyForInventory(inv);
-            if (tableKey == null) return; // portable table — no hologram to cycle
+            if (tableKey == null) return;
 
             HologramManager.cycleMode(tableKey);
             HologramManager.refreshIdle(tableKey); // show new state immediately
@@ -113,7 +100,6 @@ public class TableListener implements Listener {
             UUID owner = p.getUniqueId();
             RecycleSession session = new RecycleSession(owner, inputs, inv);
 
-            // Link session to placed table hologram (null for portable tables)
             String tableKey = TablePersistence.getKeyForInventory(inv);
             session.setTableKey(tableKey);
 

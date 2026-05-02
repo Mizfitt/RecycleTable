@@ -30,7 +30,7 @@ public class RecycleSession {
 
     /** The item currently being processed (used by HologramManager). */
     private ItemStack currentItem = null;
-    /** Key of the placed table block this session is attached to, or null for portable tables. */
+    /** Key of the placed table block this session is attached to. */
     private String tableKey = null;
 
     public RecycleSession(UUID owner, List<ItemStack> inputs, Inventory guiInventory) {
