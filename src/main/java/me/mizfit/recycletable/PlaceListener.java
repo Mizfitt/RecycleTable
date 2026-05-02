@@ -15,6 +15,7 @@ public class PlaceListener implements Listener {
         Block b = e.getBlockPlaced();
         Inventory inv = TablePersistence.createInventoryForBlock(b);
         TablePersistence.registerInventoryForBlock(b, inv);
+        HologramManager.spawnHologram(b.getLocation());
     }
 
     @EventHandler
@@ -22,6 +23,7 @@ public class PlaceListener implements Listener {
         Block b = e.getBlock();
         if (!TablePersistence.isRecyclingTableBlock(b)) return;
         b.getWorld().dropItemNaturally(b.getLocation(), RecyclingTableItem.createItem());
+        HologramManager.removeHologram(HologramManager.keyFor(b.getLocation()));
         TablePersistence.unregisterBlock(b);
     }
 }

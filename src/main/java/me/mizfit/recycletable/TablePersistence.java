@@ -2,6 +2,7 @@ package me.mizfit.recycletable;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.Inventory;
@@ -19,7 +20,9 @@ import java.util.Set;
 public class TablePersistence {
     // Keeps track of all placed recycling tables by their block location
     private static final Map<String, Inventory> inventoryMap = new HashMap<>();
-    private static final Map<String, Long> placedAt = new HashMap<>();
+    private static final Map<String, Long>      placedAt     = new HashMap<>();
+    // Reverse lookup so TableListener can find the key from an open inventory
+    private static final Map<Inventory, String> invToKey     = new HashMap<>();
 
     /**
      * Generates a unique string key for a given block location.
@@ -39,6 +42,7 @@ public class TablePersistence {
         String key = keyFor(b.getLocation());
         Inventory inv = Bukkit.createInventory(null, 54, TableListener.GUI_TITLE);
         inventoryMap.put(key, inv);
+        invToKey.put(inv, key);
         placedAt.put(key, System.currentTimeMillis());
         return inv;
     }
@@ -49,6 +53,7 @@ public class TablePersistence {
     public static void registerInventoryForBlock(Block b, Inventory inv) {
         String key = keyFor(b.getLocation());
         inventoryMap.put(key, inv);
+        invToKey.put(inv, key);
         placedAt.put(key, System.currentTimeMillis());
     }
 
@@ -71,8 +76,37 @@ public class TablePersistence {
      */
     public static void unregisterBlock(Block b) {
         String key = keyFor(b.getLocation());
-        inventoryMap.remove(key);
+        Inventory inv = inventoryMap.remove(key);
+        if (inv != null) invToKey.remove(inv);
         placedAt.remove(key);
+    }
+
+    /**
+     * Returns the "world:x:y:z" key for the given inventory, or null if it is not a placed table.
+     * Used by TableListener to link a RecycleSession to its hologram.
+     */
+    public static String getKeyForInventory(Inventory inv) {
+        return invToKey.get(inv);
+    }
+
+    /**
+     * Parses a "world:x:y:z" key back into a Bukkit Location.
+     * Returns null if the world is not loaded or the key is malformed.
+     */
+    public static Location getLocationForKey(String key) {
+        if (key == null) return null;
+        String[] parts = key.split(":");
+        if (parts.length != 4) return null;
+        World world = Bukkit.getWorld(parts[0]);
+        if (world == null) return null;
+        try {
+            int x = Integer.parseInt(parts[1]);
+            int y = Integer.parseInt(parts[2]);
+            int z = Integer.parseInt(parts[3]);
+            return new Location(world, x, y, z);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**
@@ -129,8 +163,13 @@ public class TablePersistence {
                 }
 
                 inventoryMap.put(key, inv);
+                invToKey.put(inv, key);
                 long placed = yc.getLong(key + ".placedAt", System.currentTimeMillis());
                 placedAt.put(key, placed);
+
+                // Spawn hologram above this table
+                Location loc = getLocationForKey(key);
+                if (loc != null) HologramManager.spawnHologram(loc);
             }
         } catch (Exception ex) {
             ex.printStackTrace();

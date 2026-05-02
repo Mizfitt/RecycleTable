@@ -28,6 +28,11 @@ public class RecycleSession {
     private double progress = 0.0;
     private long lastActiveTime;
 
+    /** The item currently being processed (used by HologramManager). */
+    private ItemStack currentItem = null;
+    /** Key of the placed table block this session is attached to, or null for portable tables. */
+    private String tableKey = null;
+
     public RecycleSession(UUID owner, List<ItemStack> inputs, Inventory guiInventory) {
         this.owner = owner;
         this.guiInventory = guiInventory;
@@ -52,8 +57,16 @@ public class RecycleSession {
     public long getTimeLeft() { return timeLeftTicks; }
     public double getProgress() { return progress; }
     public List<ItemStack> serializeItems() { return new ArrayList<>(queue); }
-
     public long getLastActiveTime() { return lastActiveTime; }
+
+    /** Returns the item currently being processed, or null if idle. */
+    public ItemStack getCurrentItem() { return currentItem; }
+
+    /** Returns a snapshot of items waiting in the queue (excludes the current item). */
+    public List<ItemStack> getQueuedItems() { return new ArrayList<>(queue); }
+
+    /** Links this session to a placed table block so its hologram can be updated. */
+    public void setTableKey(String key) { this.tableKey = key; }
 
     /**
      * Start or resume a session, applying offline progress.
@@ -91,6 +104,7 @@ public class RecycleSession {
 
     private void startProcessing(JavaPlugin plugin, ItemStack item, long remainingSeconds) {
         active = true;
+        currentItem = item;
         currentComplexity = Math.max(1, Math.min(250, ComplexityCalculator.calculateComplexity(item)));
         long totalSeconds = ComplexityCalculator.mapScoreToSeconds(currentComplexity);
         totalSeconds = (long) Math.ceil(totalSeconds / ConfigManager.getSpeedMultiplier());
@@ -114,6 +128,9 @@ public class RecycleSession {
 
                     if (!queue.isEmpty()) startProcessing(plugin, queue.poll(), 0);
                     else finish();
+
+                    // Refresh hologram after state change (new item or idle)
+                    HologramManager.refresh(tableKey, RecycleSession.this);
                     return;
                 }
 
@@ -121,6 +138,9 @@ public class RecycleSession {
                 timeLeftTicks = remaining[0];
                 progress = 1.0 - (remaining[0] / (double) (total * 20L));
                 lastActiveTime = System.currentTimeMillis();
+
+                // Update hologram text every second
+                HologramManager.refresh(tableKey, RecycleSession.this);
             }
         }.runTaskTimer(plugin, 0L, 20L);
     }
@@ -208,8 +228,10 @@ public class RecycleSession {
 
     private void finish() {
         active = false;
+        currentItem = null;
         timeLeftTicks = 0;
         progress = 1.0;
+        HologramManager.refreshIdle(tableKey);
         Player pl = Bukkit.getPlayer(owner);
         if (pl != null)
             pl.sendMessage(ChatColor.GREEN + "Recycling session completed.");
