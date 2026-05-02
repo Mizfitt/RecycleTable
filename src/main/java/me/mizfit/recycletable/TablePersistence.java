@@ -100,6 +100,14 @@ public class TablePersistence {
         return owner != null && owner.equals(p.getUniqueId());
     }
 
+    /** Returns true if the player already has a placed Recycling Table somewhere in the world. */
+    public static boolean hasPlacedTable(UUID uuid) {
+        for (UUID owner : ownerMap.values()) {
+            if (uuid.equals(owner)) return true;
+        }
+        return false;
+    }
+
     /**
      * Returns the "world:x:y:z" key for the given inventory, or null if it is not a placed table.
      * Used by TableListener to link a RecycleSession to its hologram.

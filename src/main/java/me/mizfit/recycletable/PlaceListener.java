@@ -15,6 +15,14 @@ public class PlaceListener implements Listener {
     @EventHandler
     public void onPlace(BlockPlaceEvent e) {
         if (!RecyclingTableItem.isRecyclingTable(e.getItemInHand())) return;
+
+        // Enforce one-table-per-player limit
+        if (TablePersistence.hasPlacedTable(e.getPlayer().getUniqueId())) {
+            e.setCancelled(true);
+            e.getPlayer().sendMessage(ChatColor.RED + "You can only have one Recycling Table placed at a time.");
+            return;
+        }
+
         Block b = e.getBlockPlaced();
         Inventory inv = TablePersistence.createInventoryForBlock(b);
         TablePersistence.registerInventoryForBlock(b, inv);
