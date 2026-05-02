@@ -149,27 +149,31 @@ public class RecycleSession {
         List<ItemStack> decomposed = RecipeManager.decomposeToRaw(item);
         double durabilityFactor = CompatibilityUtils.getDurabilityFactor(item);
         Map<Material, Integer> aggregated = new HashMap<>();
+        Map<Material, Double>  scaledAmounts = new HashMap<>();
 
         for (ItemStack raw : decomposed) {
             int baseAmt = raw.getAmount() * item.getAmount(); // scale by stack size
             double scaled = baseAmt * durabilityFactor;
             int floored = (int) Math.floor(scaled);
             if (floored > 0) aggregated.merge(raw.getType(), floored, Integer::sum);
+            // Track scaled values for probabilistic fallback
+            scaledAmounts.merge(raw.getType(), scaled, Double::sum);
         }
 
         if (aggregated.isEmpty()) {
-            Map<Material, Integer> ratio = new HashMap<>();
-            int total = 0;
-            for (ItemStack raw : decomposed) {
-                ratio.merge(raw.getType(), raw.getAmount(), Integer::sum);
-                total += raw.getAmount();
+            // Each material gets its own independent probability roll.
+            // e.g. 12% durability diamond pickaxe: diamonds scaled=0.36 → 36% chance of 1 diamond,
+            //                                       sticks scaled=0.24  → 24% chance of 1 stick.
+            for (Map.Entry<Material, Double> e : scaledAmounts.entrySet()) {
+                if (Math.random() < e.getValue()) {
+                    aggregated.put(e.getKey(), 1);
+                }
             }
-            double r = Math.random(), cumulative = 0.0;
-            for (Map.Entry<Material, Integer> e : ratio.entrySet()) {
-                cumulative += e.getValue() / (double) total;
-                if (r <= cumulative) { aggregated.put(e.getKey(), item.getAmount()); break; }
+            // Absolute last resort (extremely low durability): give 1 of the most weighted material
+            if (aggregated.isEmpty() && !scaledAmounts.isEmpty()) {
+                Material best = Collections.max(scaledAmounts.entrySet(), Map.Entry.comparingByValue()).getKey();
+                aggregated.put(best, 1);
             }
-            if (aggregated.isEmpty() && !ratio.isEmpty()) aggregated.put(ratio.keySet().iterator().next(), item.getAmount());
         }
 
         Player pl = Bukkit.getPlayer(owner);
