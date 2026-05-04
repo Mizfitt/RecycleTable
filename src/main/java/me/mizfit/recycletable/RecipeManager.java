@@ -50,21 +50,25 @@ public class RecipeManager {
             Collection<Recipe> found = Bukkit.getRecipesFor(stack);
 
             if (found != null && !found.isEmpty()) {
+                // Use only the first shaped or shapeless recipe found.
+                // Smelting/furnace recipes are intentionally skipped — they describe a
+                // transformation (ore → ingot) that runs backwards for recycling purposes.
+                // Merging ingredients from multiple recipes produces nonsense outputs.
                 for (Recipe rec : found) {
                     try {
                         if (rec instanceof ShapedRecipe) {
                             Map<Character, ItemStack> map = ((ShapedRecipe) rec).getIngredientMap();
-                            for (ItemStack i : map.values()) if (i != null) ingredients.add(i);
+                            for (ItemStack i : map.values()) {
+                                if (i != null && i.getType() != Material.AIR) ingredients.add(i);
+                            }
+                            break; // first crafting recipe only
                         } else if (rec instanceof ShapelessRecipe) {
-                            ingredients.addAll(((ShapelessRecipe) rec).getIngredientList());
-                        } else if (rec instanceof FurnaceRecipe) {
-                            FurnaceRecipe fr = (FurnaceRecipe) rec;
-                            if (fr.getInput() != null) ingredients.add(fr.getInput());
-                        } else if (isModernFurnace(rec)) {
-                            // 1.13+ Blasting/Smoking/Campfire
-                            ItemStack input = getModernFurnaceInput(rec);
-                            if (input != null) ingredients.add(input);
+                            for (ItemStack i : ((ShapelessRecipe) rec).getIngredientList()) {
+                                if (i != null && i.getType() != Material.AIR) ingredients.add(i);
+                            }
+                            break; // first crafting recipe only
                         }
+                        // FurnaceRecipe, BlastingRecipe, SmokingRecipe, CampfireRecipe — all skipped
                     } catch (Throwable ignored) {}
                 }
             }
@@ -79,21 +83,6 @@ public class RecipeManager {
 
         Bukkit.getLogger().info("[RecycleTable] Loaded " + recipes.size() + " recipes.");
         Bukkit.getLogger().info("[RecycleTable] Loaded " + recipes.size() + " recipes.");
-    }
-
-    /** Helper: detects modern furnace-like recipes without hard dependency */
-    private static boolean isModernFurnace(Recipe rec) {
-        String name = rec.getClass().getSimpleName().toLowerCase(Locale.ROOT);
-        return name.contains("blasting") || name.contains("smoking") || name.contains("campfire");
-    }
-
-    /** Reflection fallback for modern recipes (1.13+) */
-    private static ItemStack getModernFurnaceInput(Recipe rec) {
-        try {
-            Object obj = rec.getClass().getMethod("getInput").invoke(rec);
-            if (obj instanceof ItemStack) return (ItemStack) obj;
-        } catch (Exception ignored) {}
-        return null;
     }
 
     /** Checks if item is blacklisted */
