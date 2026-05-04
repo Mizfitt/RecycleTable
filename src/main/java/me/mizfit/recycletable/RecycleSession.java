@@ -183,7 +183,8 @@ public class RecycleSession {
 
         for (Map.Entry<Material, Integer> out : aggregated.entrySet()) {
             int remaining = out.getValue();
-            for (int i = 27; i <= 53 && remaining > 0; i++) {
+            for (int i = 0; i < 54 && remaining > 0; i++) {
+                if (!TableListener.isOutputSlot(i)) continue;
                 ItemStack slot = guiInventory.getItem(i);
                 if (slot == null || slot.getType() == Material.AIR) {
                     int place = Math.min(remaining, out.getKey().getMaxStackSize());

@@ -58,8 +58,8 @@ public class HopperListener implements Listener {
      */
     private void pushToInputSlots(Inventory tableInv, Inventory sourceInv, ItemStack template) {
         // Pass 1: merge into an existing partial stack
-        for (int i = 0; i <= 26; i++) {
-            if (TableListener.isControlSlot(i)) continue;
+        for (int i = 0; i < 54; i++) {
+            if (!TableListener.isInputSlot(i)) continue;
             ItemStack slot = tableInv.getItem(i);
             if (slot == null || !slot.isSimilar(template) || slot.getAmount() >= slot.getMaxStackSize()) continue;
             slot.setAmount(slot.getAmount() + 1);
@@ -69,8 +69,8 @@ public class HopperListener implements Listener {
         }
 
         // Pass 2: place in the first empty slot
-        for (int i = 0; i <= 26; i++) {
-            if (TableListener.isControlSlot(i)) continue;
+        for (int i = 0; i < 54; i++) {
+            if (!TableListener.isInputSlot(i)) continue;
             ItemStack slot = tableInv.getItem(i);
             if (slot != null && slot.getType() != Material.AIR) continue;
             ItemStack place = template.clone();
@@ -88,8 +88,8 @@ public class HopperListener implements Listener {
      * Triggers overflow repopulation so freed output slots are refilled.
      */
     private void pullFromOutputSlots(Inventory tableInv, Inventory destInv) {
-        for (int i = 27; i <= 53; i++) {
-            if (TableListener.isControlSlot(i)) continue;
+        for (int i = 0; i < 54; i++) {
+            if (!TableListener.isOutputSlot(i)) continue;
             ItemStack slot = tableInv.getItem(i);
             if (slot == null || slot.getType() == Material.AIR) continue;
 

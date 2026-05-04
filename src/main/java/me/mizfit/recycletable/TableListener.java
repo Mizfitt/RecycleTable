@@ -21,10 +21,11 @@ import java.util.UUID;
 
 public class TableListener implements Listener {
     public static final String GUI_TITLE = ChatColor.DARK_GREEN + "Recycling Table";
-    private static final int LEFT_START  = 0,  LEFT_END  = 26;
-    private static final int RIGHT_START = 27, RIGHT_END = 53;
-    private static final int RECYCLE_BUTTON_SLOT  = 22;
-    private static final int HOLOGRAM_BUTTON_SLOT = 49; // bottom-centre of output area
+
+    // Layout: columns 0-3 = input, column 4 = divider, columns 5-8 = output
+    // Buttons are in the divider column, moved one row up from the old centre positions.
+    public static final int RECYCLE_BUTTON_SLOT  = 13; // row 1, col 4
+    public static final int HOLOGRAM_BUTTON_SLOT = 40; // row 4, col 4
 
     // Tracks all currently open recycling table inventories for reliable identification
     private static final Set<Inventory> activeInventories = new HashSet<>();
@@ -54,16 +55,15 @@ public class TableListener implements Listener {
         Inventory inv = TablePersistence.getInventoryForBlock(b);
         if (inv == null) inv = TablePersistence.createInventoryForBlock(b);
 
-        // Ensure the recycle button always exists
-        if (inv.getItem(RECYCLE_BUTTON_SLOT) == null ||
-                Objects.requireNonNull(inv.getItem(RECYCLE_BUTTON_SLOT)).getType() == Material.AIR) {
-            inv.setItem(RECYCLE_BUTTON_SLOT,
-                    UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
-                            Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
-        }
-
-        // Ensure the hologram-cycle button always exists
+        // Always restore the full divider column (buttons + glass panes) so it can't be corrupted
+        inv.setItem(RECYCLE_BUTTON_SLOT,
+                UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
+                        Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
         inv.setItem(HOLOGRAM_BUTTON_SLOT, makeHologramButton(HologramManager.getMode(tableKey)));
+        ItemStack pane = UiHelpers.makeButton(Material.GRAY_STAINED_GLASS_PANE, " ", Collections.emptyList());
+        for (int i = 0; i < 54; i++) {
+            if (isDividerSlot(i) && !isControlSlot(i)) inv.setItem(i, pane.clone());
+        }
 
         activeInventories.add(inv);
         p.openInventory(inv);
@@ -103,6 +103,9 @@ public class TableListener implements Listener {
             }
         }
 
+        // Cancel all clicks on the divider column (glass panes + buttons)
+        if (isDividerSlot(raw)) e.setCancelled(true);
+
         // Hologram cycle button
         if (raw == HOLOGRAM_BUTTON_SLOT) {
             e.setCancelled(true);
@@ -132,10 +135,10 @@ public class TableListener implements Listener {
                 return;
             }
 
-            // Collect items to recycle — skip control slots so the button is never queued
+            // Collect items to recycle from the input area (columns 0-3)
             List<ItemStack> inputs = new ArrayList<>();
-            for (int i = LEFT_START; i <= LEFT_END; i++) {
-                if (isControlSlot(i)) continue;
+            for (int i = 0; i < 54; i++) {
+                if (!isInputSlot(i)) continue;
                 ItemStack it = inv.getItem(i);
                 if (it != null && it.getType() != Material.AIR) {
                     inputs.add(it.clone());
@@ -162,9 +165,9 @@ public class TableListener implements Listener {
     public void onInventoryDrag(InventoryDragEvent e) {
         if (!GUI_TITLE.equals(e.getView().getTitle())) return;
 
-        // Prevent dragging items over any control slot
+        // Prevent dragging items over any divider column slot (buttons or glass panes)
         for (int slot : e.getRawSlots()) {
-            if (isControlSlot(slot)) {
+            if (isDividerSlot(slot)) {
                 e.setCancelled(true);
                 return;
             }
@@ -184,17 +187,22 @@ public class TableListener implements Listener {
         return inv != null && activeInventories.contains(inv);
     }
 
-    /** Output slots are 27-53 (right side of the GUI), excluding control slots. */
-    public static boolean isOutputSlot(int slot) {
-        return slot >= RIGHT_START && slot <= RIGHT_END && !isControlSlot(slot);
-    }
-
-    /** Input slots are 0-26 (left side of the GUI). */
+    /** Input slots: columns 0–3, all 6 rows (24 slots on the left side). */
     public static boolean isInputSlot(int slot) {
-        return slot >= LEFT_START && slot <= LEFT_END;
+        return slot >= 0 && slot <= 53 && (slot % 9) <= 3;
     }
 
-    /** Control slots: recycle button and hologram-cycle button. */
+    /** Output slots: columns 5–8, all 6 rows (24 slots on the right side). */
+    public static boolean isOutputSlot(int slot) {
+        return slot >= 0 && slot <= 53 && (slot % 9) >= 5;
+    }
+
+    /** Divider column: column 4, all 6 rows — contains buttons and glass panes. */
+    public static boolean isDividerSlot(int slot) {
+        return slot >= 0 && slot <= 53 && (slot % 9) == 4;
+    }
+
+    /** Control slots: the two interactive buttons in the divider column. */
     public static boolean isControlSlot(int slot) {
         return slot == RECYCLE_BUTTON_SLOT || slot == HOLOGRAM_BUTTON_SLOT;
     }
