@@ -100,7 +100,7 @@ public class TableListener implements Listener {
         // Recycle button
         if (raw == RECYCLE_BUTTON_SLOT) {
             e.setCancelled(true);
-            if (e.getClick().isShiftClick() || e.getCursor() != null) return;
+            if (e.getClick().isShiftClick() || (e.getCursor() != null && e.getCursor().getType() != Material.AIR)) return;
 
             Player p = (Player) e.getWhoClicked();
             Inventory inv = e.getInventory();
