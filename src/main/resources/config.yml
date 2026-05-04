@@ -146,6 +146,17 @@ analytics:
 
 
 # ==============================================================
+# 🛠️ DEVELOPER SETTINGS
+# --------------------------------------------------------------
+# instant-processing: Set to true to skip all processing timers.
+#   Items are recycled immediately when the Recycle button is clicked.
+#   Useful for testing without waiting. Set to false on live servers.
+# ==============================================================
+dev:
+  instant-processing: false
+
+
+# ==============================================================
 # 💾 END OF CONFIGURATION
 # --------------------------------------------------------------
 # Changes to this file require a /recycletable reload

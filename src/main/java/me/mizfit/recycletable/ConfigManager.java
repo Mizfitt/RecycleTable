@@ -39,5 +39,10 @@ public class ConfigManager {
         return plugin.getConfig().getInt("processing.repopulate-interval-seconds", 5);
     }
 
+    /** Dev mode: when true, all recycling completes instantly (no timer). */
+    public static boolean isInstantProcessing() {
+        return plugin.getConfig().getBoolean("dev.instant-processing", false);
+    }
+
 }
 

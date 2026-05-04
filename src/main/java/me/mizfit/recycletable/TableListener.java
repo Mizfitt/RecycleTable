@@ -56,9 +56,9 @@ public class TableListener implements Listener {
         if (inv == null) inv = TablePersistence.createInventoryForBlock(b);
 
         // Always restore the full divider column (buttons + glass panes) so it can't be corrupted
-        inv.setItem(RECYCLE_BUTTON_SLOT,
-                UiHelpers.makeButton(Material.ANVIL, ChatColor.YELLOW + "Recycle",
-                        Collections.singletonList(ChatColor.GRAY + "Click to start processing")));
+        RecycleSession openSess = SessionManager.getSessionByTableKey(tableKey);
+        boolean processing = openSess != null && openSess.isActive();
+        inv.setItem(RECYCLE_BUTTON_SLOT, processing ? makeStopButton() : makeRecycleButton());
         inv.setItem(HOLOGRAM_BUTTON_SLOT, makeHologramButton(HologramManager.getMode(tableKey)));
         ItemStack pane = UiHelpers.makeButton(Material.GRAY_STAINED_GLASS_PANE, " ", Collections.emptyList());
         for (int i = 0; i < 54; i++) {
@@ -119,7 +119,7 @@ public class TableListener implements Listener {
             return;
         }
 
-        // Recycle button
+        // Recycle / Stop button
         if (raw == RECYCLE_BUTTON_SLOT) {
             e.setCancelled(true);
             if (e.getClick().isShiftClick() || (e.getCursor() != null && e.getCursor().getType() != Material.AIR)) return;
@@ -128,21 +128,23 @@ public class TableListener implements Listener {
             Inventory inv = e.getInventory();
             String tableKey = TablePersistence.getKeyForInventory(inv);
 
-            // Don't start a second session if one is already running
             RecycleSession existing = SessionManager.getSessionByTableKey(tableKey);
+
+            // ── STOP ────────────────────────────────────────────────────────
             if (existing != null && existing.isActive()) {
-                p.sendMessage(ChatColor.RED + "This table is already processing items.");
+                existing.stop();
+                inv.setItem(RECYCLE_BUTTON_SLOT, makeRecycleButton());
+                p.sendMessage(ChatColor.YELLOW + "Recycling stopped. The current item will restart at full time.");
                 return;
             }
 
-            // Collect items to recycle from the input area (columns 0-3)
+            // ── START ────────────────────────────────────────────────────────
             List<ItemStack> inputs = new ArrayList<>();
             for (int i = 0; i < 54; i++) {
                 if (!isInputSlot(i)) continue;
                 ItemStack it = inv.getItem(i);
                 if (it != null && it.getType() != Material.AIR) {
                     inputs.add(it.clone());
-                    // Items stay in their slots; RecycleSession clears each one as it finishes
                 }
             }
 
@@ -157,6 +159,7 @@ public class TableListener implements Listener {
 
             SessionManager.registerSession(owner, session);
             session.start(RecycleTable.getInstance(), 0);
+            inv.setItem(RECYCLE_BUTTON_SLOT, makeStopButton());
             p.sendMessage(ChatColor.GREEN + "Recycling started. Outputs will appear on the right.");
         }
     }
@@ -205,6 +208,24 @@ public class TableListener implements Listener {
     /** Control slots: the two interactive buttons in the divider column. */
     public static boolean isControlSlot(int slot) {
         return slot == RECYCLE_BUTTON_SLOT || slot == HOLOGRAM_BUTTON_SLOT;
+    }
+
+    public static ItemStack makeRecycleButton() {
+        return UiHelpers.makeButton(Material.ANVIL,
+                ChatColor.YELLOW + "Recycle",
+                Collections.singletonList(ChatColor.GRAY + "Click to start processing"));
+    }
+
+    public static ItemStack makeStopButton() {
+        return UiHelpers.makeButton(Material.BARRIER,
+                ChatColor.RED + "Stop Recycling",
+                Collections.singletonList(ChatColor.GRAY + "Click to stop — current item restarts at full time"));
+    }
+
+    /** Called by RecycleSession when a session ends (finished or stopped). */
+    public static void refreshRecycleButton(Inventory inv, boolean processing) {
+        if (inv == null) return;
+        inv.setItem(RECYCLE_BUTTON_SLOT, processing ? makeStopButton() : makeRecycleButton());
     }
 
     /** Creates the hologram-cycle button with the current mode shown in the name. */
