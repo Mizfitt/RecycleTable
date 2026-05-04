@@ -82,7 +82,26 @@ public class TableListener implements Listener {
         if (!GUI_TITLE.equals(e.getView().getTitle())) return;
 
         int raw = e.getRawSlot();
-        if (raw < 0 || raw >= 54) return;
+
+        // Block shift-clicks from the player's own inventory into the table while processing
+        if (raw < 0 || raw >= 54) {
+            if (e.getClick().isShiftClick()) {
+                String tk = TablePersistence.getKeyForInventory(e.getInventory());
+                RecycleSession sess = SessionManager.getSessionByTableKey(tk);
+                if (sess != null && sess.isActive()) e.setCancelled(true);
+            }
+            return;
+        }
+
+        // Lock input slots while this table is actively processing
+        if (isInputSlot(raw) && !isControlSlot(raw)) {
+            String tk = TablePersistence.getKeyForInventory(e.getInventory());
+            RecycleSession sess = SessionManager.getSessionByTableKey(tk);
+            if (sess != null && sess.isActive()) {
+                e.setCancelled(true);
+                return;
+            }
+        }
 
         // Hologram cycle button
         if (raw == HOLOGRAM_BUTTON_SLOT) {
@@ -104,14 +123,23 @@ public class TableListener implements Listener {
 
             Player p = (Player) e.getWhoClicked();
             Inventory inv = e.getInventory();
+            String tableKey = TablePersistence.getKeyForInventory(inv);
 
-            // Collect items to recycle
+            // Don't start a second session if one is already running
+            RecycleSession existing = SessionManager.getSessionByTableKey(tableKey);
+            if (existing != null && existing.isActive()) {
+                p.sendMessage(ChatColor.RED + "This table is already processing items.");
+                return;
+            }
+
+            // Collect items to recycle — skip control slots so the button is never queued
             List<ItemStack> inputs = new ArrayList<>();
             for (int i = LEFT_START; i <= LEFT_END; i++) {
+                if (isControlSlot(i)) continue;
                 ItemStack it = inv.getItem(i);
                 if (it != null && it.getType() != Material.AIR) {
                     inputs.add(it.clone());
-                    inv.setItem(i, null);
+                    // Items stay in their slots; RecycleSession clears each one as it finishes
                 }
             }
 
@@ -122,8 +150,6 @@ public class TableListener implements Listener {
 
             UUID owner = p.getUniqueId();
             RecycleSession session = new RecycleSession(owner, inputs, inv);
-
-            String tableKey = TablePersistence.getKeyForInventory(inv);
             session.setTableKey(tableKey);
 
             SessionManager.registerSession(owner, session);

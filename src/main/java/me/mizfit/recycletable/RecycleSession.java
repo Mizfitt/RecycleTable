@@ -124,6 +124,7 @@ public class RecycleSession {
             public void run() {
                 if (remaining[0] <= 0) {
                     processSingleItem(item);
+                    clearProcessedInputSlot(item);
                     this.cancel();
                     active = false;
 
@@ -260,12 +261,43 @@ public class RecycleSession {
             pl.sendMessage(ChatColor.GREEN + "Processed " + item.getAmount() + "x " + item.getType().name());
     }
 
+    /**
+     * Removes the first input slot that exactly matches the processed item (type + amount).
+     * Falls back to a type-only match in case amounts drifted, so slots don't silently linger.
+     */
+    private void clearProcessedInputSlot(ItemStack item) {
+        // First pass — exact match
+        for (int i = 0; i < 54; i++) {
+            if (!TableListener.isInputSlot(i) || TableListener.isControlSlot(i)) continue;
+            ItemStack slot = guiInventory.getItem(i);
+            if (slot != null && slot.getType() == item.getType() && slot.getAmount() == item.getAmount()) {
+                guiInventory.setItem(i, null);
+                return;
+            }
+        }
+        // Second pass — type-only fallback
+        for (int i = 0; i < 54; i++) {
+            if (!TableListener.isInputSlot(i) || TableListener.isControlSlot(i)) continue;
+            ItemStack slot = guiInventory.getItem(i);
+            if (slot != null && slot.getType() == item.getType()) {
+                guiInventory.setItem(i, null);
+                return;
+            }
+        }
+    }
+
     private void finish() {
         active = false;
         currentItem = null;
         timeLeftTicks = 0;
         progress = 1.0;
         HologramManager.refreshIdle(tableKey);
+        // Safety net: clear any input slots that weren't cleaned up during processing
+        for (int i = 0; i < 54; i++) {
+            if (TableListener.isInputSlot(i) && !TableListener.isControlSlot(i)) {
+                guiInventory.setItem(i, null);
+            }
+        }
         Player pl = Bukkit.getPlayer(owner);
         if (pl != null)
             pl.sendMessage(ChatColor.GREEN + "Recycling session completed.");
