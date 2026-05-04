@@ -83,7 +83,7 @@ public class RecycleTable extends JavaPlugin {
     public void onDisable() {
         HologramManager.removeAll();
         AnalyticsManager.shutdown();
-        storage.saveSessions(SessionManager.getAllSessions());
+        if (storage != null) storage.saveSessions(SessionManager.getAllSessions());
         TablePersistence.savePlacedTables(this);
         OverflowStorage.save();
     }

@@ -42,8 +42,8 @@ public class RecipeManager {
         for (Material mat : Material.values()) {
             if (blacklist.contains(mat)) continue;
 
-            // Skip uncraftable or air
-            if (mat == Material.AIR) continue;
+            // Skip air and any block-only material that has no item form
+            if (mat == Material.AIR || !mat.isItem()) continue;
 
             ItemStack stack = new ItemStack(mat);
             List<ItemStack> ingredients = new ArrayList<>();
@@ -77,6 +77,7 @@ public class RecipeManager {
             recipes.put(mat, new RecipeData(ingredients, 1));
         }
 
+        Bukkit.getLogger().info("[RecycleTable] Loaded " + recipes.size() + " recipes.");
         Bukkit.getLogger().info("[RecycleTable] Loaded " + recipes.size() + " recipes.");
     }
 
