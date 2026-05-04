@@ -338,7 +338,7 @@ public class RecycleSession {
         // Restore the Recycle button for anyone currently viewing the GUI
         TableListener.refreshRecycleButton(guiInventory, false);
         for (org.bukkit.entity.HumanEntity viewer : new ArrayList<>(guiInventory.getViewers())) {
-            viewer.updateInventory();
+            if (viewer instanceof Player) ((Player) viewer).updateInventory();
         }
         Player pl = Bukkit.getPlayer(owner);
         if (pl != null)
