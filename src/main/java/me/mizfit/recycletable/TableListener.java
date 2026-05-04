@@ -159,7 +159,8 @@ public class TableListener implements Listener {
 
             SessionManager.registerSession(owner, session);
             session.start(RecycleTable.getInstance(), 0);
-            inv.setItem(RECYCLE_BUTTON_SLOT, makeStopButton());
+            // In dev mode start() finishes synchronously, so check active state before overwriting
+            if (session.isActive()) inv.setItem(RECYCLE_BUTTON_SLOT, makeStopButton());
             p.sendMessage(ChatColor.GREEN + "Recycling started. Outputs will appear on the right.");
         }
     }

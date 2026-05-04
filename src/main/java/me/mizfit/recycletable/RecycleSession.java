@@ -335,8 +335,11 @@ public class RecycleSession {
                 guiInventory.setItem(i, null);
             }
         }
-        // Restore the Recycle button now that processing is done
+        // Restore the Recycle button for anyone currently viewing the GUI
         TableListener.refreshRecycleButton(guiInventory, false);
+        for (org.bukkit.entity.HumanEntity viewer : new ArrayList<>(guiInventory.getViewers())) {
+            viewer.updateInventory();
+        }
         Player pl = Bukkit.getPlayer(owner);
         if (pl != null)
             pl.sendMessage(ChatColor.GREEN + "Recycling session completed.");
